@@ -100,30 +100,58 @@ button { font: inherit; color: inherit; }
 .tbtn svg { width: 18px; height: 18px; flex: none; }
 
 .layers {
-  position: absolute; top: calc(var(--gap-t) + 46px); right: var(--gap-xr);
-  width: 236px; padding: 12px 14px 14px; background: var(--panel-solid); border: 1px solid var(--line); border-radius: 4px;
+  position: absolute; top: calc(var(--gap-t) + 46px); right: var(--gap-xr); z-index: 12;
+  width: 290px; max-height: calc(100% - var(--gap-t) - 150px); overflow-y: auto; overscroll-behavior: contain;
+  padding: 10px; background: var(--panel-solid); border: 1px solid var(--line); border-radius: 6px;
   box-shadow: 0 12px 40px rgba(0,0,0,.6);
 }
-.layers h2, .legend h2 {
-  margin: 0 0 8px; font-family: var(--f-mono); font-size: 11px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--ash);
+.mgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 6px; }
+.mbtn {
+  display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 10px; background: rgba(236,229,211,.06);
+  border: 1px solid var(--line); border-radius: 4px; cursor: pointer; font-size: 15px; font-weight: 700; letter-spacing: .03em; text-align: left;
 }
+.mbtn svg { width: 18px; height: 18px; flex: none; }
+.mbtn[aria-pressed="true"] { border-color: var(--ember); color: #fff; }
+.mbtn.wide { width: 100%; justify-content: center; }
+.mdet { border-top: 1px solid var(--line); }
+.mdet summary {
+  display: flex; align-items: center; justify-content: space-between; padding: 11px 4px; cursor: pointer; list-style: none;
+  font-size: 15px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+}
+.mdet summary::-webkit-details-marker { display: none; }
+.mdet summary::after { content: ""; width: 8px; height: 8px; border-right: 2px solid var(--ash); border-bottom: 2px solid var(--ash); transform: rotate(45deg); margin-right: 4px; transition: transform .15s; }
+.mdet[open] summary::after { transform: rotate(-135deg); }
+.mdet > :not(summary) { margin-left: 4px; margin-right: 4px; }
+.mdet > :last-child { margin-bottom: 12px; }
+.mdet ol { margin: 0 0 12px; padding-left: 20px; display: grid; gap: 6px; font-size: 14.5px; line-height: 1.35; }
 .layers label { display: flex; align-items: center; gap: 10px; padding: 5px 0; font-size: 16px; font-weight: 600; cursor: pointer; }
 .layers input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--blood); margin: 0; }
-.goto { display: flex; gap: 6px; margin-top: 10px; padding-top: 12px; border-top: 1px solid var(--line); }
+.goto { display: flex; gap: 6px; }
 .goto input {
-  flex: 1; min-width: 0; height: 36px; padding: 0 10px; background: #050607; color: var(--bone);
-  border: 1px solid var(--line); border-radius: 3px; font-family: var(--f-mono); font-size: 15px; text-transform: uppercase;
+  flex: 1; min-width: 0; height: 40px; padding: 0 10px; background: #050607; color: var(--bone);
+  border: 1px solid var(--line); border-radius: 3px; font-family: var(--f-mono); font-size: 16px; text-transform: uppercase;
 }
-.goto button { height: 36px; padding: 0 12px; background: var(--blood); border: 0; border-radius: 3px; font-weight: 700; letter-spacing: .06em; cursor: pointer; color: #fff; }
+.goto button { height: 40px; padding: 0 14px; background: var(--blood); border: 0; border-radius: 3px; font-weight: 700; letter-spacing: .06em; cursor: pointer; color: #fff; }
 .goto-msg { margin: 6px 0 0; font-size: 13px; color: var(--ash); min-height: 1em; }
 
-/* ---------- leyenda ---------- */
+/* ---------- leyenda (desplegable) ---------- */
 .legend {
-  position: absolute; left: var(--gap-x); bottom: calc(var(--gap-b) + 22px);
-  width: 300px; padding: 12px 12px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px;
-  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  position: absolute; left: var(--gap-x); bottom: calc(var(--gap-b) + 24px); z-index: 8;
+  display: flex; flex-direction: column-reverse; align-items: flex-start; gap: 6px; max-width: calc(100% - 32px);
 }
-.legend ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px; cursor: pointer;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 999px; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  font-size: 14px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+}
+.chip .dots { display: inline-flex; gap: 3px; }
+.chip .dots i { width: 7px; height: 7px; border-radius: 50%; }
+.chip svg { width: 14px; height: 14px; transition: transform .15s; }
+.chip[aria-expanded="true"] svg { transform: rotate(180deg); }
+.legend ul {
+  list-style: none; margin: 0; padding: 6px; display: grid; gap: 2px; width: min(330px, calc(100vw - 32px));
+  background: var(--panel-solid); border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 12px 40px rgba(0,0,0,.6);
+}
 .litem {
   display: grid; grid-template-columns: 30px 1fr auto; align-items: center; gap: 10px; width: 100%;
   padding: 6px 6px; background: none; border: 0; border-radius: 3px; text-align: left; cursor: pointer;
@@ -132,41 +160,30 @@ button { font: inherit; color: inherit; }
 .litem .ic { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); }
 .litem .ic svg { width: 17px; height: 17px; transform: rotate(45deg); fill: #fff; }
 .litem .tx { min-width: 0; }
-.litem b { display: block; font-size: 17px; line-height: 1.05; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
-.litem small { display: block; font-size: 13.5px; color: var(--ash); line-height: 1.2; }
+.litem b { display: block; font-size: 16px; line-height: 1.05; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.litem small { display: block; font-size: 13px; color: var(--ash); line-height: 1.2; }
 .cells { display: flex; gap: 4px; }
 .cell {
   font-family: var(--f-mono); font-size: 12px; font-weight: 600; padding: 2px 6px; border-radius: 2px;
   background: rgba(236,229,211,.1); border: 1px solid var(--line); font-variant-numeric: tabular-nums; white-space: nowrap;
 }
 
-/* ---------- HUD ---------- */
-.hud { position: absolute; right: var(--gap-xr); bottom: calc(var(--gap-b) + 22px); display: flex; align-items: flex-end; gap: 8px; }
+/* ---------- celda seleccionada ---------- */
+.hud { position: absolute; left: var(--gap-x); bottom: calc(var(--gap-b) + 74px); z-index: 8; }
 .readout {
-  padding: 8px 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; min-width: 150px;
-  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  position: relative; min-width: 140px; max-width: 220px; padding: 8px 36px 9px 12px;
+  background: var(--panel-solid); border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 8px 24px rgba(0,0,0,.5);
 }
 .readout .k { font-family: var(--f-mono); font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--ash); }
 .readout .v { font-family: var(--f-mono); font-size: 22px; font-weight: 600; line-height: 1.15; font-variant-numeric: tabular-nums; }
 .readout .s { font-size: 13px; color: var(--ash); }
+.x2 { position: absolute; top: 4px; right: 4px; width: 28px; height: 28px; font-size: 18px; }
 .compass {
   width: 46px; height: 46px; border-radius: 50%; background: var(--panel); border: 1px solid var(--line); cursor: pointer;
   display: grid; place-items: center; padding: 0; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
 }
 .compass svg { width: 36px; height: 36px; }
-.navpad {
-  position: absolute; right: var(--gap-xr); bottom: calc(var(--gap-b) + 112px);
-  display: flex; flex-direction: column; align-items: center; gap: 6px;
-}
-.nbtn {
-  width: 46px; height: 46px; display: grid; place-items: center; padding: 0; cursor: pointer;
-  background: var(--panel); border: 1px solid var(--line); border-radius: 4px; touch-action: none;
-  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-}
-.nbtn:hover { border-color: rgba(236,229,211,.4); }
-.nbtn:active { background: rgba(227,52,42,.35); }
-.nbtn svg { width: 22px; height: 22px; fill: none; stroke: var(--bone); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
-.navpad .compass { margin-top: 4px; }
+.navpad { position: absolute; right: var(--gap-xr); bottom: calc(var(--gap-b) + 22px); z-index: 8; }
 .hint {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 15;
   width: min(360px, calc(100% - 32px)); padding: 16px 18px 14px;
@@ -226,10 +243,33 @@ button { font: inherit; color: inherit; }
 .trow button[aria-pressed="true"] { border-color: var(--ember); color: #fff; }
 .trow .danger { color: #ff8a80; }
 .team-art p { margin: 0 0 10px; font-size: 15px; line-height: 1.4; }
+.linkbtn { display: block; margin: 10px auto 0; padding: 6px; background: none; border: 0; color: var(--ash); font-size: 14px; text-decoration: underline; cursor: pointer; }
+.permline { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; margin-top: 6px; padding: 9px 10px; background: rgba(236,229,211,.05); border: 1px solid var(--line); border-radius: 3px; cursor: pointer; font-size: 13.5px; text-align: left; }
+.permline .go { color: var(--ember); font-weight: 700; text-transform: uppercase; letter-spacing: .05em; flex: none; }
+.perm { z-index: 17; }
+.prow { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 16px; font-weight: 600; }
+.prow button { height: 36px; padding: 0 12px; background: rgba(236,229,211,.08); border: 1px solid var(--line); border-radius: 3px; font-weight: 700; cursor: pointer; }
+.st { font-family: var(--f-mono); font-size: 12.5px; color: var(--ash); }
+.st.ok { color: var(--c-avit); } .st.bad { color: #ff8a80; }
+.warnbox { padding: 8px 10px; border: 1px solid var(--ember); border-radius: 3px; color: var(--bone); }
+.perm .fine { margin-top: 10px; }
+.perm .primary { margin-top: 8px; }
+.diag { margin: 12px 0 0; font-family: var(--f-mono); font-size: 11px; line-height: 1.5; color: var(--ash); word-break: break-word; }
 .team-art a { color: var(--ember); font-family: var(--f-mono); font-size: 13px; word-break: break-all; }
+.radio { position: absolute; left: 50%; bottom: calc(var(--gap-b) + 22px); transform: translateX(-50%); z-index: 9; display: flex; align-items: center; }
+.mute {
+  position: absolute; left: calc(100% + 10px); top: 50%; transform: translateY(-50%);
+  width: 44px; height: 44px; border-radius: 50%; padding: 0; display: grid; place-items: center; cursor: pointer;
+  background: var(--panel); border: 1px solid var(--line); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+.mute svg { width: 22px; height: 22px; fill: none; stroke: var(--bone); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.mute .off, .mute[aria-pressed="true"] .on { display: none; }
+.mute[aria-pressed="true"] .off { display: block; }
+.mute[aria-pressed="true"] { border-color: var(--blood); background: rgba(80, 10, 6, .9); }
+.mute[aria-pressed="true"] svg { stroke: #ff8a80; }
 .ptt {
-  position: absolute; left: 50%; bottom: calc(var(--gap-b) + 28px); transform: translateX(-50%); z-index: 9;
-  width: 92px; height: 92px; border-radius: 50%; border: 3px solid rgba(236,229,211,.85);
+  position: relative;
+  width: 84px; height: 84px; border-radius: 50%; border: 3px solid rgba(236,229,211,.85);
   background: radial-gradient(circle at 50% 38%, #3d1210, #160505); color: #fff; cursor: pointer;
   display: grid; place-items: center; align-content: center; gap: 2px; padding: 0;
   touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
@@ -239,7 +279,7 @@ button { font: inherit; color: inherit; }
 #ptt-lbl { max-width: 72px; font-size: 10.5px; font-weight: 700; line-height: 1.05; letter-spacing: .05em; text-align: center; text-transform: uppercase; font-variant-numeric: tabular-nums; }
 .ptt.on { background: radial-gradient(circle at 50% 38%, #ff4b3a, #a3140b); border-color: #fff; box-shadow: 0 0 0 8px rgba(227,52,42,.3), 0 0 40px rgba(255,80,60,.7); }
 .talking {
-  position: absolute; left: 50%; bottom: calc(var(--gap-b) + 132px); transform: translateX(-50%); z-index: 9;
+  position: absolute; left: 50%; bottom: calc(var(--gap-b) + 118px); transform: translateX(-50%); z-index: 9;
   display: flex; align-items: center; gap: 8px; padding: 7px 14px; background: var(--panel-solid); border: 1px solid var(--line); border-radius: 999px;
   font-weight: 700; letter-spacing: .04em; white-space: nowrap;
 }
@@ -249,19 +289,19 @@ button { font: inherit; color: inherit; }
 .toast i { width: 10px; height: 10px; border-radius: 50%; flex: none; }
 .toast.action { cursor: pointer; border-color: var(--ember); }
 #ping-btn { width: 100%; height: 34px; margin-top: 6px; background: var(--ember); color: #1a0d00; border: 0; border-radius: 3px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; cursor: pointer; }
-.tag.member { border-color: rgba(255,255,255,.5); }
-.tag.member.me { border-color: #fff; }
-.tag.member i { width: 12px; height: 12px; }
-.tag.member.stale { opacity: .55; }
-.tag.ping { border-color: var(--ember); }
-@media (max-height: 600px) and (min-width: 701px) {
-  .navpad { flex-direction: row; bottom: calc(var(--gap-b) + 22px); right: calc(var(--gap-xr) + 172px); }
-  .navpad .compass { margin: 0 0 0 4px; }
+.tag.member {
+  width: 32px; height: 32px; padding: 0; gap: 0; justify-content: center; border-radius: 50%;
+  background: var(--c); border: 2px solid rgba(5,7,10,.75); color: #05070a; font-size: 13px; font-weight: 800; letter-spacing: 0;
+  box-shadow: 0 2px 10px rgba(0,0,0,.6);
 }
+.tag.member.me { border-color: #fff; box-shadow: 0 0 0 3px rgba(255,255,255,.25), 0 0 16px var(--c); }
+.tag.member.stale { opacity: .5; }
+.tag.ping i { font-size: 10px; font-weight: 800; color: #05070a; }
+.tag.ping { border-color: var(--ember); }
 
 .credits {
-  position: absolute; left: var(--gap-x); right: var(--gap-xr); bottom: var(--gap-b);
-  margin: 0; font-size: 11.5px; color: rgba(236,229,211,.62); letter-spacing: .02em; pointer-events: none;
+  position: absolute; left: var(--gap-x); bottom: calc(var(--gap-b) + 4px);
+  margin: 0; font-size: 10px; color: rgba(236,229,211,.45); letter-spacing: .02em; pointer-events: none;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 4px #000;
 }
 
@@ -303,45 +343,20 @@ button { font: inherit; color: inherit; }
   .eyebrow { font-size: 10px; }
   .when { font-size: 15px; }
   .countdown { font-size: 11.5px; }
-  .tools { flex-direction: column; align-items: flex-end; max-width: none; }
-  .tbtn { padding: 0 10px; height: 36px; font-size: 13px; }
+  .eyebrow { display: none; }
+  .tools { flex-wrap: nowrap; }
   .tbtn .lbl { display: none; }
-  .tbtn { width: 44px; height: 40px; justify-content: center; padding: 0; }
-  .layers { top: calc(var(--gap-t) + 4px); right: calc(var(--gap-xr) + 48px); width: min(236px, calc(100vw - 96px)); }
-  .legend {
-    left: 0; right: 0; width: auto; bottom: calc(var(--gap-b) + 18px);
-    padding: 8px 0 6px; border-radius: 0; border-left: 0; border-right: 0;
-  }
-  .legend h2 { display: none; }
-  .legend ul {
-    display: flex; gap: 6px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none;
-    padding-left: var(--gap-x); padding-right: var(--gap-xr); scroll-padding-left: var(--gap-x);
-  }
-  .legend ul::-webkit-scrollbar { display: none; }
-  .legend li { flex: none; }
-  .litem { grid-template-columns: 26px auto auto; gap: 8px; padding: 5px 8px 5px 6px; background: rgba(236,229,211,.06); }
-  .litem .ic { width: 24px; height: 24px; }
-  .litem .ic svg { width: 14px; height: 14px; }
-  .litem b { font-size: 14.5px; white-space: nowrap; }
-  .litem small { display: none; }
-  .hud { bottom: calc(var(--gap-b) + 92px); left: var(--gap-x); right: auto; }
-  .readout { max-width: 128px; }
+  .tbtn { width: 44px; height: 42px; justify-content: center; padding: 0; }
+  .layers, .team { top: calc(var(--gap-t) + 50px); left: var(--gap-x); right: var(--gap-xr); width: auto; max-height: calc(100% - var(--gap-t) - 170px); }
   .hint li { font-size: 15px; }
-  .readout { min-width: 0; padding: 6px 10px; }
-  .readout .v { font-size: 18px; }
-  .readout .s { display: none; }
-  .navpad { bottom: calc(var(--gap-b) + 160px); }
-  .team { top: var(--gap-t); left: var(--gap-x); right: calc(var(--gap-xr) + 52px); width: auto; max-height: calc(100% - var(--gap-t) - 110px); }
-  .ptt { width: 80px; height: 80px; bottom: calc(var(--gap-b) + 84px); }
+  .readout .v { font-size: 19px; }
+  .ptt { width: 78px; height: 78px; }
   #ptt-lbl { font-size: 9.5px; max-width: 62px; }
-  .talking { bottom: calc(var(--gap-b) + 176px); }
-  .nbtn { width: 44px; height: 44px; }
-  .credits { font-size: 10px; }
+  .talking { bottom: calc(var(--gap-b) + 112px); }
+  .chip { height: 40px; padding: 0 11px; font-size: 13px; }
   .tag { font-size: 12px; padding: 2px 7px 2px 3px; }
+  .tag.member { padding: 0; font-size: 12.5px; }
   .place { font-size: 11px; }
-}
-@media (max-width: 700px) and (max-height: 780px) {
-  #nav-rl, #nav-rr { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   .countdown::before { animation: none; }
@@ -360,45 +375,49 @@ button { font: inherit; color: inherit; }
     <p class="countdown" id="countdown" aria-live="polite">Calculando…</p>
   </header>
 
-  <nav class="tools" aria-label="Vista">
-    <button class="tbtn" id="btn-night" aria-pressed="true" title="Cambiar entre noche y día">
-      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.5 14.6A8.5 8.5 0 0 1 9.4 3.5a8.5 8.5 0 1 0 11.1 11.1z"/></svg>
-      <span class="lbl" id="lbl-night">Noche</span>
-    </button>
-    <button class="tbtn" id="btn-2d" aria-pressed="false" title="Vista cenital como el mapa impreso">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15M15 6v15"/></svg>
-      <span class="lbl" id="lbl-2d">2D</span>
-    </button>
-    <button class="tbtn" id="btn-home" title="Volver a la vista general">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
-      <span class="lbl">General</span>
-    </button>
+  <nav class="tools" aria-label="Opciones">
     <button class="tbtn" id="btn-team" aria-expanded="false" aria-controls="team" title="Equipo en directo: ubicación y walkie-talkie">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><circle cx="17" cy="9" r="2.6"/><path d="M15.5 14.2A4.6 4.6 0 0 1 21 18.5"/></svg>
       <span class="lbl">Equipo</span>
     </button>
-    <button class="tbtn" id="btn-help" title="Cómo moverse por el mapa">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 1 1 3.6 2.3c-.8.4-1.2 1-1.2 1.9v.5"/><path d="M12 17.2v.1"/></svg>
-      <span class="lbl">Ayuda</span>
-    </button>
-    <button class="tbtn" id="btn-layers" aria-expanded="false" aria-controls="layers" title="Capas y búsqueda de celda">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></svg>
-      <span class="lbl">Capas</span>
+    <button class="tbtn" id="btn-layers" aria-expanded="false" aria-controls="layers" title="Menú: vista, capas y ayuda">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      <span class="lbl">Menú</span>
     </button>
   </nav>
 
   <div class="layers" id="layers" hidden>
-    <h2>Capas</h2>
-    <label><input type="checkbox" id="ly-grid" checked> Cuadrícula del mapa</label>
-    <label><input type="checkbox" id="ly-names" checked> Nombres de lugares</label>
-    <label><input type="checkbox" id="ly-fx" checked> Fuego y humo</label>
-    <label><input type="checkbox" id="ly-zombies" checked> Zombis</label>
-    <label><input type="checkbox" id="ly-heli" checked> Helicóptero</label>
-    <form class="goto" id="goto" autocomplete="off">
-      <input id="goto-input" type="text" inputmode="text" maxlength="5" placeholder="K-12" aria-label="Ir a celda, por ejemplo K-12">
-      <button type="submit">Ir</button>
-    </form>
-    <p class="goto-msg" id="goto-msg">Escribe una celda del mapa (B–S, 1–25).</p>
+    <div class="mgrid">
+      <button type="button" class="mbtn" id="btn-night" aria-pressed="true"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.5 14.6A8.5 8.5 0 0 1 9.4 3.5a8.5 8.5 0 1 0 11.1 11.1z"/></svg><span id="lbl-night">Noche</span></button>
+      <button type="button" class="mbtn" id="btn-2d" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15M15 6v15"/></svg><span>Vista <span id="lbl-2d">2D</span></span></button>
+      <button type="button" class="mbtn" id="btn-home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><span>General</span></button>
+      <button type="button" class="mbtn" id="btn-help"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 1 1 3.6 2.3c-.8.4-1.2 1-1.2 1.9v.5"/><path d="M12 17.2v.1"/></svg><span>Gestos</span></button>
+    </div>
+    <details class="mdet">
+      <summary>Capas</summary>
+      <label><input type="checkbox" id="ly-grid" checked> Cuadrícula del mapa</label>
+      <label><input type="checkbox" id="ly-names"> Nombres de tiendas y calles</label>
+      <label><input type="checkbox" id="ly-fx" checked> Fuego y humo</label>
+      <label><input type="checkbox" id="ly-zombies" checked> Zombis</label>
+      <label><input type="checkbox" id="ly-heli" checked> Helicóptero</label>
+    </details>
+    <details class="mdet">
+      <summary>Ir a una celda</summary>
+      <form class="goto" id="goto" autocomplete="off">
+        <input id="goto-input" type="text" inputmode="text" maxlength="5" placeholder="K-12" aria-label="Ir a celda, por ejemplo K-12">
+        <button type="submit">Ir</button>
+      </form>
+      <p class="goto-msg" id="goto-msg">Filas B–S, columnas 1–25.</p>
+    </details>
+    <details class="mdet">
+      <summary>Permisos</summary>
+      <p class="fine">¿No te deja usar la ubicación o el micrófono?</p>
+      <button type="button" class="mbtn wide" id="btn-perm">Revisar permisos</button>
+    </details>
+    <details class="mdet">
+      <summary>Créditos</summary>
+      <p class="fine">Ortofoto PNOA © Instituto Geográfico Nacional (CC BY 4.0). Cartografía © OpenStreetMap contributors (ODbL). Puntos del evento: mapa impreso de Love Zombies.</p>
+    </details>
   </div>
 
   <section class="team" id="team" aria-label="Equipo en directo" hidden>
@@ -413,6 +432,7 @@ button { font: inherit; color: inherit; }
       <label class="f">Código de equipo <input type="text" id="tj-code" maxlength="16" placeholder="Vacío = crear equipo nuevo"></label>
       <p class="fine">Tu ubicación solo la ve quien tenga el enlace del equipo, y solo mientras tengas esta página abierta. Todo viaja cifrado de extremo a extremo.</p>
       <p class="msg" id="tj-msg"></p>
+      <button type="button" class="linkbtn" id="tj-perm">¿Problemas con los permisos?</button>
     </form>
     <div id="team-live" hidden>
       <div class="share"><code id="tl-code"></code><button type="button" id="tl-share">Invitar</button></div>
@@ -421,28 +441,48 @@ button { font: inherit; color: inherit; }
       <p class="status warn" id="tl-geo" hidden></p>
       <ul id="tl-list"></ul>
       <div class="trow"><button type="button" id="tl-me">Centrar en mí</button><button type="button" id="tl-follow" aria-pressed="false">Seguirme</button></div>
-      <div class="trow"><button type="button" id="tl-mute" aria-pressed="false">Silenciar walkie</button><button type="button" id="tl-leave" class="danger">Salir</button></div>
+      <button type="button" class="permline" id="tl-perm"><span id="tl-perm-txt">Permisos</span><span class="go">Revisar</span></button>
+      <button type="button" class="linkbtn" id="tl-leave">Salir del equipo</button>
     </div>
   </section>
 
+  <section class="team perm" id="perm" aria-label="Permisos" hidden>
+    <div class="team-head"><h2>Permisos</h2><button type="button" class="x" id="perm-close" aria-label="Cerrar">×</button></div>
+    <div class="prow"><span>Ubicación</span><b id="perm-geo" class="st">—</b><button type="button" id="perm-geo-btn">Pedir</button></div>
+    <div class="prow"><span>Micrófono</span><b id="perm-mic" class="st">—</b><button type="button" id="perm-mic-btn">Probar</button></div>
+    <p class="fine warnbox" id="perm-inapp" hidden>Estás abriendo el enlace dentro de otra app. Ábrelo en Safari o Chrome: toca los tres puntos o el botón de compartir y elige «Abrir en el navegador».</p>
+    <p class="fine">Si pone «Bloqueado», el móvil no volverá a preguntar: hay que cambiarlo en los ajustes.</p>
+    <details class="mdet" id="perm-ios"><summary>iPhone · Safari</summary><ol>
+      <li><b>Ajustes → Privacidad y seguridad → Localización</b>: activada.</li>
+      <li>En esa pantalla baja a <b>Sitios web de Safari</b> → <b>Al usar la app</b> y activa <b>Ubicación exacta</b>.</li>
+      <li><b>Ajustes → Apps → Safari</b> (en iOS 17: <b>Ajustes → Safari</b>) → <b>Ubicación</b> y <b>Micrófono</b> → <b>Preguntar</b> o <b>Permitir</b>.</li>
+      <li>En Safari, con esta página abierta, toca <b>aA</b> en la barra de direcciones → <b>Ajustes del sitio web</b> → Ubicación y Micrófono: <b>Permitir</b>.</li>
+      <li>Si no oyes el walkie, sube el volumen y quita el modo silencio.</li>
+    </ol></details>
+    <details class="mdet" id="perm-ioschrome"><summary>iPhone · Chrome</summary><ol>
+      <li><b>Ajustes → Privacidad y seguridad → Localización</b>: activada.</li>
+      <li><b>Ajustes → Apps → Chrome</b> → <b>Ubicación: Al usar la app</b> con <b>Ubicación exacta</b>, y <b>Micrófono</b> activado.</li>
+      <li>Vuelve a Chrome y recarga la página.</li>
+    </ol></details>
+    <details class="mdet" id="perm-android"><summary>Android · Chrome</summary><ol>
+      <li>Activa la <b>Ubicación</b> del móvil (desliza desde arriba).</li>
+      <li>En Chrome toca el icono a la izquierda de la dirección → <b>Permisos</b> → Ubicación y Micrófono: <b>Permitir</b>.</li>
+      <li>Si sigue sin ir: <b>Ajustes → Aplicaciones → Chrome → Permisos</b> → Ubicación <b>Permitir solo mientras se usa</b> y Micrófono permitido.</li>
+    </ol></details>
+    <button type="button" class="primary" id="perm-reload">Ya lo he cambiado · recargar</button>
+    <p class="diag" id="perm-diag"></p>
+  </section>
+
   <aside class="legend" aria-label="Leyenda">
-    <h2>Leyenda · toca para ir</h2>
-    <ul id="legend-list"></ul>
+    <button type="button" class="chip" id="legend-toggle" aria-expanded="false" aria-controls="legend-list">
+      <span class="dots" aria-hidden="true"><i style="background:#2e8bff"></i><i style="background:#ffd21f"></i><i style="background:#ff4436"></i><i style="background:#8fdc2c"></i><i style="background:#c4211a"></i></span>
+      Leyenda
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg>
+    </button>
+    <ul id="legend-list" hidden></ul>
   </aside>
 
   <div class="navpad" role="group" aria-label="Mover el mapa">
-    <button class="nbtn" id="nav-in" type="button" aria-label="Acercar" title="Acercar">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-    </button>
-    <button class="nbtn" id="nav-out" type="button" aria-label="Alejar" title="Alejar">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg>
-    </button>
-    <button class="nbtn" id="nav-rl" type="button" aria-label="Girar el mapa a la izquierda" title="Girar a la izquierda">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 9.5A8 8 0 1 1 4 14"/><path d="M4 4.5v5h5"/></svg>
-    </button>
-    <button class="nbtn" id="nav-rr" type="button" aria-label="Girar el mapa a la derecha" title="Girar a la derecha">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 9.5A8 8 0 1 0 20 14"/><path d="M20 4.5v5h-5"/></svg>
-    </button>
     <button class="compass" id="compass" type="button" title="Orientar al norte" aria-label="Orientar al norte">
       <svg viewBox="0 0 40 40" id="needle" aria-hidden="true">
         <circle cx="20" cy="20" r="18" fill="none" stroke="rgba(236,229,211,.25)"/>
@@ -452,8 +492,9 @@ button { font: inherit; color: inherit; }
     </button>
   </div>
 
-  <div class="hud">
+  <div class="hud" id="hud" hidden>
     <div class="readout" aria-live="polite">
+      <button type="button" class="x x2" id="hud-close" aria-label="Quitar celda">×</button>
       <div class="k">Celda</div>
       <div class="v" id="cell-v">—</div>
       <div class="s" id="cell-s">Toca el mapa</div>
@@ -462,10 +503,16 @@ button { font: inherit; color: inherit; }
   </div>
 
   <div class="talking" id="talking" hidden><i></i><span></span></div>
-  <button type="button" class="ptt" id="ptt" hidden aria-label="Walkie-talkie: mantén pulsado para hablar">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/></svg>
-    <span id="ptt-lbl">Mantén para hablar</span>
-  </button>
+  <div class="radio" id="radio" hidden>
+    <button type="button" class="ptt" id="ptt" aria-label="Walkie-talkie: mantén pulsado para hablar">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/></svg>
+      <span id="ptt-lbl">Mantén para hablar</span>
+    </button>
+    <button type="button" class="mute" id="btn-mute" aria-pressed="false" aria-label="Silenciar el walkie" title="Silenciar el walkie">
+      <svg class="on" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>
+      <svg class="off" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9l6 6M22 9l-6 6"/></svg>
+    </button>
+  </div>
   <div class="toasts" id="toasts" aria-live="polite"></div>
 
   <div class="hint" id="hint" role="dialog" aria-label="Cómo moverse por el mapa" hidden>
@@ -486,7 +533,7 @@ button { font: inherit; color: inherit; }
     <button type="button" id="hint-ok">Entendido</button>
   </div>
 
-  <p class="credits">Ortofoto PNOA © Instituto Geográfico Nacional · Datos © OpenStreetMap contributors (ODbL) · Mapa original del evento: Love Zombies</p>
+  <p class="credits">© IGN PNOA · © OpenStreetMap</p>
 
   <div class="loader" id="loader" role="status">
     <div class="box">
@@ -1342,7 +1389,7 @@ for (const m of MK) {
   markers.push(mk);
   const el = document.createElement('button');
   el.className = 'tag'; el.type = 'button';
-  el.innerHTML = `<i style="background:${m.col}">${svgIcon(m.key)}</i><span>${m.short || m.name}</span><span class="cell">${p.cell}</span>`;
+  el.innerHTML = `<i style="background:${m.col}">${svgIcon(m.key)}</i><span class="cell">${p.cell}</span>`;
   el.setAttribute('aria-label', `${m.name}, celda ${p.cell}`);
   el.addEventListener('click', () => focusMarker(mk));
   mk.label = addLabel(el, new THREE.Vector3(p.x, 26, p.z), { kind: 'marker', always: true });
@@ -1357,7 +1404,7 @@ for (const z of ZONES) {
   skulls.push(sk);
   const el = document.createElement('button');
   el.className = 'tag zone'; el.type = 'button';
-  el.innerHTML = `<i style="background:#c4211a">${svgIcon('zona')}</i><span>No accesible</span><span class="cell">${p.cell}</span>`;
+  el.innerHTML = `<i style="background:#c4211a">${svgIcon('zona')}</i><span class="cell">${p.cell}</span>`;
   el.setAttribute('aria-label', `Zona no accesible, celda ${p.cell}`);
   el.addEventListener('click', () => flyTo(new THREE.Vector3(p.x, 0, p.z), 260, 48));
   addLabel(el, new THREE.Vector3(p.x, 44, p.z), { kind: 'marker', always: true });
@@ -1418,7 +1465,7 @@ async function buildTexts() {
     const yaw = Math.atan2(best.nx, best.nz);
     sign.rotation.set(0, yaw, 0); sign.position.set(best.mx + best.nx * 0.4, b.h - Math.min(6, b.h * 0.3) * 0.75, best.mz + best.nz * 0.4);
     sign.userData = { flick: rnd() < 0.5, ph: rnd() * 10 };
-    signs.push(sign); scene.add(sign);
+    sign.visible = showNames; signs.push(sign); scene.add(sign);
   }
 }
 const signs = [];
@@ -1552,7 +1599,9 @@ function updateHeli(t) {
 }
 
 // ---------------------------------------------------------------- leyenda, cuenta atrás, controles de UI
-const legend = $('#legend-list');
+const legend = $('#legend-list'), legendBtn = $('#legend-toggle');
+function setLegend(open) { legend.hidden = !open; legendBtn.setAttribute('aria-expanded', String(open)); }
+legendBtn.addEventListener('click', () => setLegend(legend.hidden));
 const legendItems = [
   { key: 'checkin', name: 'Check-in', sub: 'Punto de encuentro', col: '#2e8bff', ids: ['checkin'] },
   { key: 'escena', name: 'Escena inicial / final', sub: 'A las 23:59h y a las 05:30h', col: '#ffd21f', ids: ['escena'] },
@@ -1573,6 +1622,7 @@ for (const it of legendItems) {
     if (it.ids.length > 1) { id = it.ids[recogidaToggle % it.ids.length]; recogidaToggle++; }
     const mk = markers.find((m) => m.id === id); if (mk) focusMarker(mk);
   });
+  b.addEventListener('click', () => setLegend(false));
   li.appendChild(b); legend.appendChild(li);
 }
 
@@ -1598,9 +1648,10 @@ $('#btn-night').addEventListener('click', (e) => {
 // capas
 const layersBtn = $('#btn-layers'), layersEl = $('#layers');
 layersBtn.addEventListener('click', () => { layersEl.hidden = !layersEl.hidden; layersBtn.setAttribute('aria-expanded', String(!layersEl.hidden)); });
-let gridTarget = 1, showNames = true;
+let gridTarget = 1, showNames = false;
+groundText.visible = false;
 $('#ly-grid').addEventListener('change', (e) => { gridTarget = e.target.checked ? 1 : 0; gridText.visible = e.target.checked; });
-$('#ly-names').addEventListener('change', (e) => { showNames = e.target.checked; groundText.visible = showNames; });
+$('#ly-names').addEventListener('change', (e) => { showNames = e.target.checked; groundText.visible = showNames; signs.forEach((sg) => { sg.visible = showNames; }); });
 $('#ly-fx').addEventListener('change', (e) => { fxGroup.visible = e.target.checked; for (let i = 0; i < fires.length; i++) U.uFire.value[i].y = e.target.checked ? fires[i].y + 3 : -5000; });
 $('#ly-zombies').addEventListener('change', (e) => { zMesh.visible = e.target.checked; });
 $('#ly-heli').addEventListener('change', (e) => { heli.visible = cone.visible = e.target.checked; if (!e.target.checked) U.uHeli.value.w = 0; });
@@ -1721,10 +1772,13 @@ $('#compass').addEventListener('click', () => flyTo(cam.target, null, null, 0, 8
 const cellV = $('#cell-v'), cellS = $('#cell-s');
 function selectCell(c, r) {
   U.uSel.value.set(c, r);
+  $('#hud').hidden = false;
   cellV.textContent = `${ROWS[r]}-${c}`;
   const here = [...markers.filter((m) => m.cell === `${ROWS[r]}-${c}`).map((m) => m.name), ...skulls.filter((s) => s.cells.includes(`${ROWS[r]}-${c}`)).map(() => 'Zona no accesible')];
   cellS.textContent = here.length ? here.join(' · ') : 'Celda marcada en el mapa';
 }
+function clearCell() { U.uSel.value.set(-99, -99); $('#hud').hidden = true; $('#ping-btn').hidden = true; }
+$('#hud-close').addEventListener('click', clearCell);
 const ptrs = new Map();
 let gest = null, lastTap = 0, lastTapXY = [0, 0];
 const _gp = new THREE.Vector3();
@@ -1829,7 +1883,7 @@ function handleTap(x, y) {
   lastTap = now; lastTapXY = [x, y];
   const p = groundAt(x, y, new THREE.Vector3()); if (!p) return;
   const [u, v] = worldToGrid(p.x, p.z);
-  if (!cellName(u, v)) { U.uSel.value.set(-99, -99); cellV.textContent = '—'; cellS.textContent = 'Fuera de la cuadrícula'; return; }
+  if (!cellName(u, v)) { clearCell(); return; }
   selectCell(Math.floor(u), Math.floor(v));
   onCellTapped(p);
 }
@@ -1861,10 +1915,7 @@ function holdRepeat(btn, fn) {
   ['pointerup', 'pointerleave', 'pointercancel'].forEach((ev) => btn.addEventListener(ev, stop));
   btn.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fn(); } });
 }
-holdRepeat($('#nav-in'), () => zoomStep(0.62));
-holdRepeat($('#nav-out'), () => zoomStep(1 / 0.62));
-holdRepeat($('#nav-rl'), () => rotateStep(-Math.PI / 10));
-holdRepeat($('#nav-rr'), () => rotateStep(Math.PI / 10));
+['#btn-home', '#btn-2d', '#btn-help'].forEach((id) => $(id).addEventListener('click', () => { layersEl.hidden = true; layersBtn.setAttribute('aria-expanded', 'false'); }));
 
 // ayuda de gestos
 const hintEl = $('#hint');
@@ -1994,6 +2045,8 @@ const b64e = (u8) => { let s = ''; for (let i = 0; i < u8.length; i += 0x8000) s
 const b64d = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
 const cleanName = (s) => String(s || '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 18) || 'Sin nombre';
 const cleanCol = (c) => (/^#[0-9a-f]{6}$/i.test(c) ? c : '#ffffff');
+const INI = { 'Íñigo': 'IÑ', Dani: 'D', Alejandro: 'A', Migue: 'M', JM: 'JM' };
+const initials = (n) => { const t = String(n || '?').trim(); return INI[t] || (t.length <= 2 ? t.toUpperCase() : t[0].toUpperCase()); };
 async function nameId(n) { return 'm' + hexOf(await crypto.subtle.digest('SHA-256', tenc.encode('pvnz-member/' + n.toLowerCase()))).slice(0, 12); }
 function remember(k) { team.seenSet.add(k); team.seen.push(k); if (team.seen.length > 4000) team.seenSet.delete(team.seen.shift()); }
 
@@ -2079,14 +2132,67 @@ function startGeo() {
   team.geoWatch = navigator.geolocation.watchPosition((pos) => {
     const c = pos.coords;
     team.myPos = { lat: c.latitude, lon: c.longitude, acc: c.accuracy, ts: Date.now() };
+    setPerm('geo', 'granted');
     const [x, z] = llToXZ(c.latitude, c.longitude);
     setGeoMsg(inWide(x, z) ? (c.accuracy > 60 ? `Señal GPS débil (±${Math.round(c.accuracy)} m)` : null)
       : `Estás a ${fmtDist(haversine(team.myPos, { lat: 41.6087, lon: -0.8872 }))} de Puerto Venecia: apareces cuando llegues.`);
     placeMe(); publishPresence(); renderTeamList();
   }, (err) => {
-    setGeoMsg(err.code === 1 ? 'Ubicación denegada. Permítela para esta página en los ajustes del navegador y recarga.' : 'Sin señal de ubicación todavía. Sal al exterior o espera unos segundos.');
+    if (err.code === 1) { setPerm('geo', 'denied'); setGeoMsg('Ubicación bloqueada en este móvil.'); toast('Ubicación bloqueada · toca para arreglarlo', '#ff8a80', openPerm); }
+    else setGeoMsg('Sin señal de ubicación todavía. Sal al exterior o espera unos segundos.');
   }, { enableHighAccuracy: true, maximumAge: 3000, timeout: 25000 });
 }
+// ---------- permisos
+const UA = navigator.userAgent;
+const isIOS = /iPad|iPhone|iPod/.test(UA) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const isInApp = /FBAN|FBAV|Instagram|WhatsApp|Line\/|Twitter|TikTok|Snapchat|; wv\)/i.test(UA);
+const perm = { geo: 'prompt', mic: 'prompt' };
+const PERM_TXT = { granted: 'Permitido', denied: 'Bloqueado', prompt: 'Sin pedir' };
+function setPerm(k, st) {
+  perm[k] = st;
+  const el = $(k === 'geo' ? '#perm-geo' : '#perm-mic');
+  el.textContent = PERM_TXT[st] || st; el.className = 'st' + (st === 'granted' ? ' ok' : st === 'denied' ? ' bad' : '');
+  $('#tl-perm-txt').textContent = `Ubicación: ${PERM_TXT[perm.geo]} · Micro: ${PERM_TXT[perm.mic]}`;
+  $('#tl-perm').classList.toggle('bad', perm.geo === 'denied' || perm.mic === 'denied');
+}
+async function readPerms() {
+  if (!navigator.permissions?.query) return;
+  for (const [k, name] of [['geo', 'geolocation'], ['mic', 'microphone']]) {
+    try { const q = await navigator.permissions.query({ name }); setPerm(k, q.state); q.onchange = () => setPerm(k, q.state); } catch (e) { /* no soportado */ }
+  }
+}
+function primeGeo(onOk) {
+  if (!('geolocation' in navigator)) return;
+  navigator.geolocation.getCurrentPosition((pos) => {
+    setPerm('geo', 'granted');
+    const c = pos.coords; team.myPos = { lat: c.latitude, lon: c.longitude, acc: c.accuracy, ts: Date.now() };
+    if (team.on) { placeMe(); publishPresence(true); renderTeamList(); }
+    onOk?.();
+  }, (err) => { if (err.code === 1) setPerm('geo', 'denied'); }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 5000 });
+}
+function openPerm() {
+  const pEl = $('#perm'); pEl.hidden = false; teamEl.hidden = true; teamBtn.setAttribute('aria-expanded', 'false'); layersEl.hidden = true;
+  $('#perm-inapp').hidden = !isInApp;
+  $('#perm-ios').open = isIOS && !/CriOS/.test(UA); $('#perm-ioschrome').open = isIOS && /CriOS/.test(UA); $('#perm-android').open = !isIOS && /Android/.test(UA);
+  readPerms().then(diag);
+}
+function diag() {
+  const br = (UA.match(/(CriOS|FxiOS|EdgA|SamsungBrowser|Chrome|Firefox|Version)\/([\d.]+)/) || [])[0] || 'desconocido';
+  const os = isIOS ? 'iOS ' + ((UA.match(/OS (\d+[_\d]*)/) || [])[1] || '').replace(/_/g, '.') : ((UA.match(/Android [\d.]+/) || ['otro'])[0]);
+  const n = team.clients.filter((c) => c.connected).length;
+  $('#perm-diag').textContent = `Diagnóstico · ${os} · ${br}${isInApp ? ' · dentro de otra app' : ''} · https ${window.isSecureContext ? 'sí' : 'NO'} · servidores ${team.on ? n + '/' + BROKERS.length : 'sin entrar'} · GPS ${PERM_TXT[perm.geo]}${team.myPos ? ' (±' + Math.round(team.myPos.acc) + ' m)' : ''} · micro ${PERM_TXT[perm.mic]}`;
+}
+$('#perm-close').addEventListener('click', () => { $('#perm').hidden = true; });
+$('#perm-reload').addEventListener('click', () => location.reload());
+$('#perm-geo-btn').addEventListener('click', () => primeGeo(() => { if (team.on) { if (team.geoWatch != null) navigator.geolocation.clearWatch(team.geoWatch); startGeo(); } toast('Ubicación activada'); }));
+$('#perm-mic-btn').addEventListener('click', () => {
+  if (!navigator.mediaDevices?.getUserMedia) { setPerm('mic', 'denied'); return; }
+  navigator.mediaDevices.getUserMedia({ audio: true }).then((st) => { st.getTracks().forEach((tr) => tr.stop()); setPerm('mic', 'granted'); toast('Micrófono listo'); })
+    .catch((e) => setPerm('mic', e && e.name === 'NotAllowedError' ? 'denied' : 'prompt'));
+  unlockAudio();
+});
+['#btn-perm', '#tj-perm', '#tl-perm'].forEach((id) => $(id).addEventListener('click', openPerm));
+readPerms();
 async function requestWake() { try { if (navigator.wakeLock && document.visibilityState === 'visible') team.wake = await navigator.wakeLock.request('screen'); } catch (e) { /* opcional */ } }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && team.on) { requestWake(); publishPresence(true); } });
 
@@ -2108,8 +2214,10 @@ function makeAvatar(col, name, isMe) {
   memberGroup.add(g);
   const el = document.createElement('button');
   el.className = 'tag member' + (isMe ? ' me' : ''); el.type = 'button';
-  el.innerHTML = `<i style="background:${col}"></i><span class="nm"></span><span class="cell"></span>`;
-  el.querySelector('.nm').textContent = isMe ? `${name} (tú)` : name;
+  el.style.setProperty('--c', col);
+  el.innerHTML = '<span class="ini"></span><span class="cell" hidden></span>';
+  el.querySelector('.ini').textContent = initials(name);
+  el.setAttribute('aria-label', isMe ? `${name} (tú)` : name);
   const pos = new THREE.Vector3();
   const L = { el, pos, kind: 'member', always: true, hide: true };
   labelsEl.appendChild(el); labels.push(L);
@@ -2218,7 +2326,10 @@ function centerOnMe() {
 function syncFollow() { $('#tl-follow').setAttribute('aria-pressed', String(team.follow)); }
 $('#tl-me').addEventListener('click', centerOnMe);
 $('#tl-follow').addEventListener('click', () => { team.follow = !team.follow; syncFollow(); if (team.follow) centerOnMe(); });
-$('#tl-mute').addEventListener('click', (e) => { team.muted = !team.muted; e.currentTarget.setAttribute('aria-pressed', String(team.muted)); e.currentTarget.textContent = team.muted ? 'Walkie silenciado' : 'Silenciar walkie'; });
+const muteBtn = $('#btn-mute');
+function setMuted(v) { team.muted = v; muteBtn.setAttribute('aria-pressed', String(v)); muteBtn.setAttribute('aria-label', v ? 'Activar el sonido del walkie' : 'Silenciar el walkie'); muteBtn.title = v ? 'Walkie silenciado: toca para oírlo' : 'Silenciar el walkie'; store.set('pv-mute', v ? '1' : '0'); }
+muteBtn.addEventListener('click', () => { setMuted(!team.muted); toast(team.muted ? 'Walkie silenciado: verás quién habla, sin sonido' : 'Walkie con sonido'); if (!team.muted) unlockAudio(); });
+setMuted(store.get('pv-mute') === '1');
 $('#tl-share').addEventListener('click', async () => {
   const url = `${location.origin}${location.pathname}#equipo=${team.code}`;
   const text = 'Únete a mi equipo en el mapa de Puerto Venecia (Noche Z)';
@@ -2236,6 +2347,7 @@ ROSTER.forEach((r) => {
   rosterEl.appendChild(b);
 });
 async function pickRoster(r) {
+  unlockAudio(); requestWake(); primeGeo();
   let code = $('#tj-code').value.toUpperCase().replace(/[^A-Z0-9]/g, '');
   if (code && code.length < 6) { $('#tj-msg').textContent = 'El código de equipo tiene al menos 6 caracteres. Déjalo vacío para crear uno nuevo.'; return; }
   if (!code) code = newCode();
@@ -2254,7 +2366,7 @@ async function joinTeam(name, col, code, gesture) {
   history.replaceState(null, '', '#equipo=' + code);
   $('#team-join').hidden = true; $('#team-live').hidden = false;
   $('#tl-code').textContent = code.replace(/(.{5})(.+)/, '$1·$2');
-  $('#ptt').hidden = false; document.body.classList.add('in-team');
+  $('#radio').hidden = false; document.body.classList.add('in-team');
   updateConnState();
   startGeo();
   await connectBrokers();
@@ -2272,7 +2384,7 @@ async function leaveTeam() {
   for (const id of [...pings.keys()]) dropPing(id);
   try { team.wake?.release(); } catch (e) { /* opcional */ }
   store.del('pv-team'); history.replaceState(null, '', location.pathname + location.search);
-  $('#team-join').hidden = false; $('#team-live').hidden = true; $('#ptt').hidden = true; $('#ping-btn').hidden = true;
+  $('#team-join').hidden = false; $('#team-live').hidden = true; $('#radio').hidden = true; $('#ping-btn').hidden = true;
   document.body.classList.remove('in-team'); teamBtn.classList.remove('live');
   $('#tj-code').value = ''; $('#tj-msg').textContent = '';
 }
@@ -2282,6 +2394,7 @@ const RATE = 8000, CH = 4000;
 let actx = null, bus = null;
 function audioCtx() { if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)(); return actx; }
 async function unlockAudio() {
+  try { if (navigator.audioSession && navigator.audioSession.type === 'auto') navigator.audioSession.type = 'playback'; } catch (e) { /* solo Safari */ }
   const c = audioCtx();
   try { if (c.state !== 'running') await c.resume(); } catch (e) { /* requiere gesto */ }
   const s = c.createBufferSource(); s.buffer = c.createBuffer(1, 1, 22050); s.connect(c.destination); s.start(0);
@@ -2320,12 +2433,13 @@ let pttHeld = false;
 const pttEl = $('#ptt');
 async function startTalk() {
   if (talk.on || !team.on) return;
-  const c = audioCtx(); await unlockAudio();
-  if (!navigator.mediaDevices?.getUserMedia) { toast('Este navegador no permite usar el micrófono desde esta página.'); return; }
+  if (!navigator.mediaDevices?.getUserMedia) { toast('Este navegador no permite usar el micrófono desde esta página.', '#ff8a80', openPerm); return; }
   clearTimeout(talk.release);
-  try {
-    if (!talk.stream) talk.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 } });
-  } catch (e) { toast('Micrófono bloqueado. Permítelo para esta página en los ajustes del navegador.'); return; }
+  const micP = talk.stream ? Promise.resolve(talk.stream) : navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 } });
+  const c = audioCtx(); unlockAudio();
+  try { talk.stream = await micP; setPerm('mic', 'granted'); }
+  catch (e) { if (e && e.name === 'NotAllowedError') { setPerm('mic', 'denied'); toast('Micrófono bloqueado · toca para arreglarlo', '#ff8a80', openPerm); } else toast('No se pudo abrir el micrófono.'); return; }
+  try { if (c.state !== 'running') await c.resume(); } catch (e) { /* requiere gesto */ }
   if (!pttHeld) { talk.release = setTimeout(() => { talk.stream?.getTracks().forEach((tr) => tr.stop()); talk.stream = null; }, 6000); return; }
   talk.on = true; talk.clip = Math.random().toString(36).slice(2, 10); talk.i = 0; talk.buf = []; talk.pos = 0; talk.t0 = performance.now();
   talk.src = c.createMediaStreamSource(talk.stream);
@@ -2378,7 +2492,12 @@ pttEl.addEventListener('keyup', (e) => { if (e.key === ' ' || e.key === 'Enter')
 const rxClips = new Map(); let radioBusyUntil = 0;
 const talkingEl = $('#talking');
 function onRadio(m) {
-  if (team.muted || typeof m.clip !== 'string' || !Number.isInteger(m.i) || m.i < 0 || m.i > 60) return;
+  if (typeof m.clip !== 'string' || !Number.isInteger(m.i) || m.i < 0 || m.i > 60) return;
+  if (team.muted) {
+    talkingEl.hidden = false; talkingEl.querySelector('i').style.background = cleanCol(m.col); talkingEl.querySelector('span').textContent = `${cleanName(m.name)} habla · silenciado`;
+    clearTimeout(onRadio.mt); onRadio.mt = setTimeout(() => { talkingEl.hidden = true; }, m.last ? 1200 : 3000);
+    return;
+  }
   const c = audioCtx();
   if (c.state !== 'running') { needAudioUnlock(); return; }
   let cl = rxClips.get(m.clip);
@@ -2436,8 +2555,8 @@ function showPing(m) {
   const ring = new THREE.Mesh(new THREE.RingGeometry(0.8, 1, 48).rotateX(-Math.PI / 2), ringMat(col)); ring.position.y = 1.1; ring.renderOrder = 7;
   g.add(beam, ring); scene.add(g);
   const el = document.createElement('button'); el.type = 'button'; el.className = 'tag ping';
-  el.innerHTML = `<i style="background:${col}">${svgIcon('zona')}</i><span class="nm"></span><span class="cell"></span>`;
-  el.querySelector('.nm').textContent = `Aviso de ${name}`; el.querySelector('.cell').textContent = m.cell || '—';
+  el.innerHTML = `<i style="background:${col}"></i><span class="nm">Aviso</span><span class="cell"></span>`;
+  el.querySelector('i').textContent = initials(name); el.querySelector('.cell').textContent = m.cell || '—';
   el.addEventListener('click', () => flyTo(new THREE.Vector3(x, 0, z), 170, 52));
   const L = { el, pos: new THREE.Vector3(x, 30, z), kind: 'member', always: true };
   labelsEl.appendChild(el); labels.push(L);
