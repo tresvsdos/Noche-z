@@ -3124,7 +3124,7 @@ if (MODE === 'video') {
     team, ROSTER, placeEntry, placeMe, renderTeamList, updatePill, openTeam, closeSheets,
     showPing, dropPing, pings, PING, toast, onPing,
     setNight: (v) => { nightTarget = v; }, unlockAudio, audioCtx, tone, squelch, amb, setAmb, startAmbient, boom, siren, duckAmbient,
-    pttEl, talkingEl, heli };
+    pttEl, talkingEl, heli, renderer, composer, buildingAt, inWater };   // renderer/composer: el renderizador del MP4 sube la resolución del 3D
 }
 
 </script>
@@ -3183,7 +3183,7 @@ body.vid-noLabels #labels { opacity: 0; }
   #vid.top.right .v-title { right: 7vw; text-align: left; }
   #vid.top.right .v-title .k { flex-direction: row; }
   body.vid-ui .toasts, body.vid-ui .talking { top: 37vh; }
-  body.vid-ui .navpad { display: none; }   /* en vertical el título ocupa ese hueco */
+  #vid.top .v-title { right: calc(7vw + 58px); }   /* deja sitio a los botones de la derecha (brújula, ubícate) */
   #vid.top .v-title h2 { font-size: clamp(24px, 8vw, 54px); }
   #vid.top .v-title .s { font-size: clamp(14px, 3.9vw, 24px); }
 }
@@ -3208,41 +3208,6 @@ body.vid-noLabels #labels { opacity: 0; }
 @keyframes vpress { 0% { opacity: 0; transform: translate(-50%, -50%) scale(1.4); } 18% { opacity: 1; transform: translate(-50%, -50%) scale(.82); } 60% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -50%) scale(.82); } }
 @keyframes vhold { 0% { opacity: 0; transform: translate(-50%, -50%) scale(1.4); } 18% { opacity: 1; transform: translate(-50%, -50%) scale(.82); } 100% { opacity: 1; transform: translate(-50%, -50%) scale(.82); } }
 @keyframes vripple { 0% { opacity: 0; transform: translate(-50%, -50%) scale(.8); } 25% { opacity: .9; } 100% { opacity: 0; transform: translate(-50%, -50%) scale(2.6); } }
-
-/* móvil bloqueado con la notificación de la app */
-.v-phone { position: absolute; right: 8vw; top: 50%; width: 32vmin; aspect-ratio: 9 / 19.5; opacity: 0; transform: translate(calc(100% + 14vw), -50%) rotate(6deg); transition: transform 1.1s cubic-bezier(.2, .8, .2, 1), opacity .5s; }
-#vid.phone .v-phone { opacity: 1; transform: translate(0, -50%) rotate(-4deg); }
-.v-phone .body { position: absolute; inset: 0; border-radius: 4.6vmin; padding: 1.1vmin; background: linear-gradient(145deg, #2a2c31, #0c0d10 40%, #1d1f23); box-shadow: 0 30px 90px rgba(0,0,0,.75), inset 0 0 0 1px rgba(255,255,255,.12); }
-.v-phone .scr { position: relative; height: 100%; border-radius: 3.6vmin; overflow: hidden; background: radial-gradient(120% 70% at 30% 0%, #3b1512 0%, transparent 60%), radial-gradient(90% 60% at 90% 100%, #10233a 0%, transparent 65%), #07080b; }
-.v-phone .isl { position: absolute; top: 1.4vmin; left: 50%; width: 30%; height: 3.2vmin; transform: translateX(-50%); border-radius: 2vmin; background: #000; }
-.v-phone .sb { position: absolute; top: 1.6vmin; left: 3vmin; right: 3vmin; display: flex; justify-content: space-between; font-size: 1.7vmin; font-weight: 600; color: #fff; }
-.v-phone .sb .loc { color: #3d9bff; }
-.v-phone .clock { position: absolute; top: 10%; left: 0; right: 0; text-align: center; color: #fff; }
-.v-phone .clock small { display: block; font-size: 2vmin; font-weight: 600; opacity: .85; }
-.v-phone .clock b { display: block; font-family: var(--f-body); font-weight: 600; font-size: 10vmin; line-height: 1; letter-spacing: -.01em; }
-.v-phone .noti { position: absolute; left: 1.6vmin; right: 1.6vmin; top: 43%; display: flex; gap: 1.3vmin; padding: 1.5vmin; border-radius: 2.4vmin; background: rgba(40, 42, 48, .78); backdrop-filter: blur(8px); color: #fff; opacity: 0; transform: translateY(-3vmin) scale(.96); transition: opacity .5s, transform .6s cubic-bezier(.2, .8, .2, 1); }
-#vid.noti .v-phone .noti { opacity: 1; transform: none; }
-.v-phone .noti img { width: 4.6vmin; height: 4.6vmin; border-radius: 1.1vmin; flex: none; }
-.v-phone .noti .t { min-width: 0; }
-.v-phone .noti .h { display: flex; justify-content: space-between; gap: 1vmin; font-size: 1.45vmin; opacity: .7; text-transform: uppercase; letter-spacing: .04em; }
-.v-phone .noti b { display: block; margin-top: .3vmin; font-size: 1.85vmin; line-height: 1.15; }
-.v-phone .noti p { margin: .3vmin 0 0; font-size: 1.7vmin; line-height: 1.2; opacity: .85; }
-.v-phone .bar { position: absolute; bottom: 1.2vmin; left: 50%; width: 34%; height: .6vmin; transform: translateX(-50%); border-radius: 1vmin; background: rgba(255,255,255,.7); }
-@media (max-aspect-ratio: 4/5) {
-  .v-phone { right: auto; left: 50%; top: auto; bottom: 5vh; width: 42vw; transform: translate(-50%, calc(100% + 12vh)) rotate(4deg); }
-  #vid.phone .v-phone { transform: translate(-50%, 0) rotate(-3deg); }
-  .v-phone .body { border-radius: 6.5vw; padding: 1.5vw; }
-  .v-phone .scr { border-radius: 5.2vw; }
-  .v-phone .isl { top: 2vw; height: 4.4vw; border-radius: 3vw; }
-  .v-phone .sb { top: 2.2vw; left: 4vw; right: 4vw; font-size: 2.4vw; }
-  .v-phone .clock small { font-size: 2.8vw; }
-  .v-phone .clock b { font-size: 13vw; }
-  .v-phone .noti { left: 2.2vw; right: 2.2vw; gap: 1.8vw; padding: 2vw; border-radius: 3.4vw; }
-  .v-phone .noti img { width: 6.4vw; height: 6.4vw; border-radius: 1.6vw; }
-  .v-phone .noti .h { font-size: 2vw; }
-  .v-phone .noti b { font-size: 2.6vw; }
-  .v-phone .noti p { font-size: 2.35vw; }
-}
 
 /* entrada y cierre */
 .v-intro, .v-end { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 2.4vmin; text-align: center; opacity: 0; transition: opacity .8s; }
@@ -3281,15 +3246,16 @@ body.vid-noLabels #labels { opacity: 0; }
 .v-pause { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 10px 22px; border-radius: 12px; background: rgba(0,0,0,.7); font-family: var(--f-mono); font-size: 15px; letter-spacing: .2em; text-transform: uppercase; }
 </style>
 <script type="module">
-// Vídeo de presentación del mapa del Survival Zombie (video.html): un guion de planos sobre el mapa real, para grabar la pantalla.
-// Clic para empezar · Espacio pausa · R reinicia · F pantalla completa · video.html#s=5 empieza en la escena 5.
-// Todo es local: el equipo, los avisos y el walkie son de mentira y no se conecta a ningún servidor.
+// Vídeo de presentación del mapa del Survival Zombie (video.html): 30 s de planos sobre el mapa real, con lo imprescindible.
+// Clic para empezar · Espacio pausa · R reinicia · F pantalla completa · video.html#s=3 empieza en la escena 3.
+// Todo es local: el equipo y el aviso son de mentira y no se conecta a ningún servidor.
 const V = await new Promise((res) => { const iv = setInterval(() => { if (window.__pvVideo) { clearInterval(iv); res(window.__pvVideo); } }, 40); });
 const { THREE, cam, camera, canvas, applyCam, kick } = V;
 const $ = (s) => document.querySelector(s);
 const rad = THREE.MathUtils.degToRad;
 const portrait = () => camera.aspect < 0.8;
 const K = () => (portrait() ? 1.3 : 1);   // en vertical cabe menos a lo ancho: los planos generales se alejan un poco
+const LOGO = 'assets/sz-logo-hd.png';    // el de su web reconstruido a 1792 px (tools/logo_hd.py): el original de 224 px se pixela
 
 // ---------------------------------------------------------------- capa de rótulos
 const root = document.createElement('div'); root.id = 'vid';
@@ -3299,25 +3265,17 @@ root.innerHTML = `
 <div class="v-calls"></div>
 <div class="v-title"><p class="k"></p><h2></h2><p class="s"></p></div>
 <div class="v-taps"></div>
-<div class="v-phone"><div class="body"><div class="scr">
-  <div class="isl"></div>
-  <div class="sb"><span>01:12</span><svg class="loc" viewBox="0 0 24 24" width="1.4em" height="1.4em" aria-hidden="true"><path fill="currentColor" d="M20.5 3.5 3.5 10.6l7.2 2.2 2.2 7.2z"/></svg></div>
-  <div class="clock"><small>domingo, 1 de noviembre</small><b>01:12</b></div>
-  <div class="noti"><img src="assets/icon-192.png" alt=""><div class="t"><div class="h"><span>Survival Z</span><span>ahora</span></div>
-    <b>Survival Z · compartiendo tu ubicación</b><p>Tu equipo ve dónde estás. Toca para abrir el mapa.</p></div></div>
-  <div class="bar"></div>
-</div></div></div>
-<div class="v-intro"><img src="assets/sz-logo.png" alt="Survival Zombie"><p>El mapa del evento</p></div>
-<div class="v-end"><img src="assets/sz-logo.png" alt="Survival Zombie"><h3>El mapa del Survival Zombie Night</h3>
+<div class="v-intro"><img src="${LOGO}" alt="Survival Zombie"><p>El mapa del evento</p></div>
+<div class="v-end"><img src="${LOGO}" alt="Survival Zombie"><h3>El mapa del Survival Zombie Night</h3>
   <p class="url">tresvsdos.github.io/Noche-z</p><p class="fine">Mapa no oficial, hecho por jugadores · © IGN PNOA · © OpenStreetMap</p></div>
 <div class="v-flash"></div>
 <div class="v-fade"></div>
 <div class="v-catch" hidden></div>
 <div class="v-pause" hidden>Pausa</div>
 <div class="v-start"><div class="box">
-  <img src="assets/sz-logo.png" alt="Survival Zombie">
+  <img src="${LOGO}" alt="Survival Zombie">
   <h1>Vídeo de presentación</h1>
-  <p>Dura 1:45 y lleva sonido. Pon la ventana en horizontal (1920×1080) o en vertical (1080×1920), empieza a grabar la pantalla y pulsa.</p>
+  <p>Dura 30 segundos y lleva sonido. Pon la ventana en horizontal (1920×1080) o en vertical (1080×1920), empieza a grabar la pantalla y pulsa.</p>
   <span class="go wait">Cargando el mapa…</span>
   <p class="keys"><kbd>Espacio</kbd> pausa · <kbd>R</kbd> reinicia · <kbd>F</kbd> pantalla completa</p>
 </div></div>`;
@@ -3340,7 +3298,6 @@ const ez = {
   inOut: (k) => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2),
   out: (k) => 1 - Math.pow(1 - k, 3),
   sine: (k) => -(Math.cos(Math.PI * k) - 1) / 2,
-  lin: (k) => k,
 };
 
 // ---------------------------------------------------------------- cámara
@@ -3357,18 +3314,6 @@ function camTo(s, dur, e = ez.inOut) {
     applyCam(); return k >= 1;
   };
   return wait(dur);
-}
-// sigue a alguien del equipo girando despacio alrededor; «lead» (m) adelanta el punto de mira hacia la cámara: la persona sale más arriba
-function camFollow(s, { dist, phi, spin = 0.05, lead = 0 } = {}) {
-  let t0 = vt;
-  camTw = (now) => {
-    const dt = Math.min(0.1, (now - t0) / 1000); t0 = now;
-    const tx = s.x + Math.sin(cam.theta) * lead, tz = s.z + Math.cos(cam.theta) * lead;
-    cam.target.x += (tx - cam.target.x) * Math.min(1, dt * 2); cam.target.z += (tz - cam.target.z) * Math.min(1, dt * 2);
-    if (dist) cam.dist += (dist - cam.dist) * Math.min(1, dt * 1.5);
-    if (phi != null) cam.phi += (rad(phi) - cam.phi) * Math.min(1, dt * 1.5);
-    cam.theta += spin * dt; applyCam(); return false;
-  };
 }
 
 // ---------------------------------------------------------------- piezas de la capa
@@ -3397,7 +3342,7 @@ function toScreen(x, y, z) {
   return { x: (_p.x * 0.5 + 0.5) * canvas.clientWidth, y: (-_p.y * 0.5 + 0.5) * canvas.clientHeight, on: _p.z < 1 && Math.abs(_p.x) < 1.1 && Math.abs(_p.y) < 1.1 };
 }
 const calls = new Set();
-function callout(x, z, name, sub, cell, col, ms, y = 16) {
+function callout(x, z, name, sub, cell, col, ms, y = 30) {
   const el = document.createElement('div'); el.className = 'v-call'; el.style.setProperty('--c', col);
   el.innerHTML = '<div class="card"><div><b></b><small></small></div><span class="cell"></span></div><div class="stem"></div>';
   el.querySelector('b').textContent = name; el.querySelector('small').textContent = sub; el.querySelector('.cell').textContent = cell;
@@ -3408,20 +3353,14 @@ function callout(x, z, name, sub, cell, col, ms, y = 16) {
   later(ms, () => { el.classList.remove('show'); later(450, () => { el.remove(); calls.delete(c); }); });
 }
 function placeCall(c) { const s = toScreen(c.x, c.y, c.z); c.el.style.display = s.on ? '' : 'none'; c.el.style.transform = `translate3d(${s.x}px, ${s.y}px, 0) translate(-50%, -100%)`; }
-function tap(x, y, hold = false) {
-  const el = document.createElement('div'); el.className = 'v-tap' + (hold ? ' hold' : '');
+function tap(x, y) {
+  const el = document.createElement('div'); el.className = 'v-tap';
   el.style.left = `${x}px`; el.style.top = `${y}px`;
   root.querySelector('.v-taps').appendChild(el);
-  if (!hold) setTimeout(() => el.remove(), 1000);
-  return el;
+  setTimeout(() => el.remove(), 1000);
+  if (live()) V.tone(1900, 0.025, ctx().currentTime + 0.01, 0.025);   // clic suave
 }
-function tapEl(el, hold) { const r = el.getBoundingClientRect(); return tap(r.left + r.width / 2, r.top + r.height / 2, hold); }
-// el rótulo del borde (letra o número) que mejor se ve ahora mismo
-function edgeLabel(kind, i) {
-  let best = null;
-  for (const m of V.edgeLabels[kind][i]) { const s = toScreen(m.position.x, m.position.y, m.position.z); if (s.on && (!best || s.y > best.y)) best = s; }
-  return best;
-}
+function tapEl(el) { const r = el.getBoundingClientRect(); tap(r.left + r.width / 2, r.top + r.height / 2); }
 
 // ---------------------------------------------------------------- sonido
 const ctx = () => V.audioCtx();
@@ -3435,48 +3374,57 @@ function whoosh(vol = 0.16, dur = 1) {
   s.connect(f).connect(g).connect(c.destination); s.start(n); s.stop(n + dur + 0.05);
 }
 const hit = (v = 0.3) => { if (live()) V.boom(v); };
-// voz de walkie: chasquido, soplido de radio y la voz del sistema (si hay voz en español)
-let voices = [];
-const loadVoices = () => { voices = window.speechSynthesis?.getVoices?.() || []; };
-loadVoices(); window.speechSynthesis?.addEventListener?.('voiceschanged', loadVoices);
-// voz masculina en español si la hay (en Windows, «Pablo»); si no, la que haya
-function esVoice(i) {
-  const es = voices.filter((v) => /^es[-_]ES/i.test(v.lang)), any = es.length ? es : voices.filter((v) => /^es/i.test(v.lang));
-  const male = any.filter((v) => /pablo|jorge|álvaro|alvaro|enrique|diego|male|hombre/i.test(v.name));
-  const pool = male.length ? male : any; return pool.length ? pool[i % pool.length] : null;
-}
-function radioTalk(text, { who, col, voice = 0, pitch = 1 } = {}) {
-  return new Promise((res) => {
-    let done = false, bed = null;
-    if (who) { V.talkingEl.hidden = false; V.talkingEl.querySelector('i').style.background = col; V.talkingEl.querySelector('span').textContent = `${who} está hablando`; }
-    if (live()) {
-      const c = ctx(), n = c.currentTime;
-      V.squelch(n + 0.02); V.duckAmbient(true);
-      bed = c.createBufferSource(); bed.buffer = noise(c, 2); bed.loop = true;
-      const f = c.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1700; f.Q.value = 0.7;
-      const g = c.createGain(); g.gain.value = 0.028; bed.connect(f).connect(g).connect(c.destination); bed.start(n + 0.12);
+
+// ---------------------------------------------------------------- rutas: por calles y plazas, nunca a través de un edificio
+// A* en una rejilla de 3 m que evita edificios (con 4 m de margen) y agua; luego se tensa la ruta mientras la recta siga libre.
+const freeAt = (x, z, m) => !V.buildingAt(x, z, m) && !V.inWater(x, z);
+function findPath(a, b) {
+  const C = 3, pad = 70;
+  const x0 = Math.min(a.x, b.x) - pad, z0 = Math.min(a.z, b.z) - pad;
+  const nx = Math.ceil((Math.max(a.x, b.x) + pad - x0) / C), nz = Math.ceil((Math.max(a.z, b.z) + pad - z0) / C), N = nx * nz;
+  const idx = (i, j) => j * nx + i;
+  const blocked = new Uint8Array(N);
+  for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) blocked[idx(i, j)] = freeAt(x0 + (i + 0.5) * C, z0 + (j + 0.5) * C, 4) ? 0 : 1;
+  const cellOf = (p) => [Math.max(0, Math.min(nx - 1, Math.floor((p.x - x0) / C))), Math.max(0, Math.min(nz - 1, Math.floor((p.z - z0) / C)))];
+  const [si, sj] = cellOf(a), [gi, gj] = cellOf(b), s = idx(si, sj), g = idx(gi, gj);
+  blocked[s] = 0; blocked[g] = 0;
+  const gS = new Float32Array(N).fill(Infinity), from = new Int32Array(N).fill(-1), closed = new Uint8Array(N), heap = [];
+  const push = (f, id) => { heap.push([f, id]); let k = heap.length - 1; while (k > 0) { const p = (k - 1) >> 1; if (heap[p][0] <= heap[k][0]) break; [heap[p], heap[k]] = [heap[k], heap[p]]; k = p; } };
+  const pop = () => {
+    const top = heap[0], end = heap.pop();
+    if (heap.length) { heap[0] = end; let k = 0; for (;;) { const l = 2 * k + 1, r = l + 1; let m = k; if (l < heap.length && heap[l][0] < heap[m][0]) m = l; if (r < heap.length && heap[r][0] < heap[m][0]) m = r; if (m === k) break; [heap[m], heap[k]] = [heap[k], heap[m]]; k = m; } }
+    return top;
+  };
+  const h = (i, j) => { const dx = Math.abs(i - gi), dz = Math.abs(j - gj); return dx + dz + (Math.SQRT2 - 2) * Math.min(dx, dz); };
+  gS[s] = 0; push(h(si, sj), s);
+  while (heap.length) {
+    const id = pop()[1]; if (closed[id]) continue; closed[id] = 1; if (id === g) break;
+    const i = id % nx, j = (id / nx) | 0;
+    for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+      if (!di && !dj) continue;
+      const ni = i + di, nj = j + dj; if (ni < 0 || nj < 0 || ni >= nx || nj >= nz) continue;
+      const nid = idx(ni, nj); if (blocked[nid] || closed[nid]) continue;
+      if (di && dj && (blocked[idx(i + di, j)] || blocked[idx(i, j + dj)])) continue;   // sin cortar esquinas
+      const ng = gS[id] + (di && dj ? Math.SQRT2 : 1);
+      if (ng < gS[nid]) { gS[nid] = ng; from[nid] = id; push(ng + h(ni, nj), nid); }
     }
-    const fin = () => {
-      if (done) return; done = true;
-      try { bed?.stop(); } catch (e) { /* ya parado */ }
-      if (live()) { V.tone(1150, 0.07, ctx().currentTime + 0.03, 0.07); V.duckAmbient(false); }
-      if (who) later(250, () => { V.talkingEl.hidden = true; });
-      res();
-    };
-    const synth = window.speechSynthesis, v = esVoice(voice);
-    if (synth && v) {
-      const u = new SpeechSynthesisUtterance(text); u.voice = v; u.lang = v.lang; u.rate = 1.06; u.pitch = pitch; u.volume = 1;
-      u.onend = fin; u.onerror = fin; setTimeout(() => synth.speak(u), 180);
-    }
-    setTimeout(fin, Math.max(1900, text.length * 80));
-  });
+  }
+  if (g !== s && from[g] < 0) { console.warn('sin ruta', a, b); return [a]; }   // mejor quieto que atravesando un edificio
+  const pts = [];
+  for (let id = g; id !== -1; id = from[id]) pts.push({ x: x0 + ((id % nx) + 0.5) * C, z: z0 + (((id / nx) | 0) + 0.5) * C });
+  pts.reverse(); pts[0] = { x: a.x, z: a.z }; pts[pts.length - 1] = { x: b.x, z: b.z };
+  const clear = (p, q) => { const n = Math.ceil(Math.hypot(q.x - p.x, q.z - p.z) / 1.5); for (let k = 1; k < n; k++) { const t = k / n; if (!freeAt(p.x + (q.x - p.x) * t, p.z + (q.z - p.z) * t, 3)) return false; } return true; };
+  const out = [pts[0]];
+  for (let k = 0; k < pts.length - 1;) { let m = pts.length - 1; while (m > k + 1 && !clear(pts[k], pts[m])) m--; out.push(pts[m]); k = m; }
+  return out;
 }
 
 // ---------------------------------------------------------------- equipo de mentira (solo en local)
 const toLL = (x, z) => ({ lon: (x / 0.69178 + 2000) / 4096 * 0.034 - 0.904, lat: 41.618 - (z / 0.69136 + 1550) / 3213 * 0.02 });
-const cellXZ = (cell) => { const [r, c] = cell.split('-'); return V.gridToWorld(+c + 0.5, V.ROWS.indexOf(r) + 0.5); };
+const MEET = { x: -180, z: -23 };   // Plaza de las Máscaras (K-9): despejada 15 m alrededor
+// cada uno en una calle o aparcamiento distinto, a 80–130 m de la plaza (todo despejado; tú en I-10)
+const SPAWN = [[-127, 47], [-210, -86], [-92, -78], [-255, 40], [-128, 89]];
 const sim = [];
-const HOME = [[-64, 92], [-80, 78], [-56, 74], [-88, 98], [-72, 106]];   // junto al check-in (H-11)
 function ensureTeam() {
   if (V.team.on) return;
   const T = V.team;
@@ -3484,9 +3432,9 @@ function ensureTeam() {
     clients: [{ connected: true, publish() {}, end() {} }] });
   $('#team-join').hidden = true; $('#team-live').hidden = false; $('#tl-code').textContent = 'K7Q2M·X9P4D';
   $('#tl-status').textContent = 'Conectado · 3/3 servidores'; $('#tl-status').classList.remove('warn');
-  $('#radio').hidden = false; $('#btn-me').hidden = false; document.body.classList.add('in-team'); $('#btn-team').classList.add('live');
+  $('#radio').hidden = true; $('#btn-me').hidden = false; document.body.classList.add('in-team'); $('#btn-team').classList.add('live');
   V.ROSTER.forEach((r, i) => {
-    const s = { me: i === 0, x: HOME[i][0], z: HOME[i][1], gx: HOME[i][0], gz: HOME[i][1], v: 6 + i * 0.6, ph: i * 1.7 };
+    const s = { me: i === 0, x: SPAWN[i][0], z: SPAWN[i][1], bx: SPAWN[i][0], bz: SPAWN[i][1], path: null, pi: 0, v: 21 + i * 1.5, ph: i * 1.7 };
     if (!s.me) { s.m = { id: `mvideo${i}`, name: r.name, col: r.col, nb: true }; T.members.set(s.m.id, s.m); }
     sim.push(s); placeSim(s);
   });
@@ -3496,14 +3444,28 @@ function placeSim(s) {
   const ll = toLL(s.x, s.z);
   if (s.me) { V.team.myPos = { lat: ll.lat, lon: ll.lon, acc: 6, ts: Date.now() }; V.placeMe(); }
   else { Object.assign(s.m, { lat: ll.lat, lon: ll.lon, acc: 6, ts: Date.now() }); V.placeEntry(s.m, false); }
+  // sin el suavizado de la app: si no, en las esquinas recortaría y se metería en el edificio
+  const e = s.me ? V.team.meEntry : s.m;
+  if (e) { e.x = e.tx; e.z = e.tz; }
 }
-// mete a cada uno camino de un sitio, un poco separados entre sí
-function goTo(i, x, z, spread = 10) { const s = sim[i]; const a = s.ph * 2.3; s.gx = x + Math.cos(a) * spread; s.gz = z + Math.sin(a) * spread; }
+function goMeet() {
+  sim.forEach((s, i) => {
+    const a = i * 1.257;   // cada uno a un lado de la plaza
+    const goal = { x: MEET.x + Math.cos(a) * 8, z: MEET.z + Math.sin(a) * 8 };
+    s.path = findPath({ x: s.x, z: s.z }, goal); s.pi = 1;
+  });
+}
 function moveSim(dt) {
   for (const s of sim) {
-    const dx = s.gx - s.x, dz = s.gz - s.z, d = Math.hypot(dx, dz);
-    if (d > 0.5) { const st = Math.min(d, s.v * dt); s.x += dx / d * st; s.z += dz / d * st; }
-    else { s.x += Math.sin(vt / 900 + s.ph) * 0.4 * dt; s.z += Math.cos(vt / 1100 + s.ph) * 0.4 * dt; }   // quietos, se mueven un poco
+    if (s.path && s.pi < s.path.length) {
+      let step = s.v * dt;
+      while (step > 0 && s.pi < s.path.length) {
+        const q = s.path[s.pi], dx = q.x - s.x, dz = q.z - s.z, d = Math.hypot(dx, dz);
+        if (d <= step) { s.x = q.x; s.z = q.z; step -= d; s.pi++; } else { s.x += dx / d * step; s.z += dz / d * step; step = 0; }
+      }
+    } else if (!s.path) {   // esperando: se mueven un poco sin salirse de su sitio (hay 12 m libres alrededor)
+      s.x = s.bx + Math.sin(vt / 900 + s.ph) * 1.6; s.z = s.bz + Math.cos(vt / 1300 + s.ph) * 1.6;
+    }
     placeSim(s);
   }
 }
@@ -3523,193 +3485,88 @@ function tick(now) {
 }
 requestAnimationFrame(tick);
 
-// ---------------------------------------------------------------- escenas
+// ---------------------------------------------------------------- escenas (unos 30 s en total)
 const P = V.EV.points;
 const fade = (on) => root.querySelector('.v-fade').classList.toggle('on', on);
 
-async function sIntro() {
+async function sIntro() {   // 2,2 s
   mode('cine', { labels: false }); fade(false);
   camSet({ x: -60, z: -60, dist: 2300 * K(), phi: 74, theta: -1.35 });
   const intro = root.querySelector('.v-intro'); intro.classList.add('show');
   if (live()) { V.amb.on = true; V.startAmbient(true); }
-  await wait(4200);
+  await wait(2200);
   flash(); whoosh(0.2, 1.1);
   intro.classList.remove('show');
 }
-async function sEstablish() {
+async function sMap() {   // 5 s: entender el mapa de un vistazo
   mode('cine', { labels: false });
-  camTo({ x: 0, z: 10, dist: 1120 * K(), phi: 54, theta: 0.15 }, 9000, ez.out);
-  await wait(1200);
-  title('Survival Zombie Night · Zaragoza', 'Puerto Venecia, en 3D', 'Todo el recinto del evento, de noche y a escala real', { hold: 6300 });
-  await wait(7800);
+  camTo({ x: 0, z: 10, dist: 1080 * K(), phi: 54, theta: 0.15 }, 5000, ez.out);
+  await wait(500);
+  title('Survival Zombie Night · Zaragoza', 'El mapa del evento, en 3D', 'Puerto Venecia entero, de noche y con la cuadrícula del mapa impreso', { hold: 4300 });
+  await wait(4500);
 }
-async function sTerrain() {
-  mode('cine', { labels: false }); flash(); whoosh(0.14, 0.9);
-  // rasante sobre el lago hacia Distrito Ocio
-  camSet({ x: 185, z: 40, dist: 240, phi: 77, theta: 2.05 });
-  camTo({ x: 70, z: 35, dist: 190, phi: 74, theta: 1.55 }, 5000, ez.sine);
-  await wait(600);
-  title('01 · El terreno', 'Cada calle, cada edificio', 'Ortofoto del IGN y OpenStreetMap: 9.700 árboles, 588 farolas, fuego y humo', { hold: 7600 });
-  await wait(4400);
-  // detrás del helicóptero, con su foco barriendo las calles
-  flash();
-  // (el helicóptero da vueltas a una elipse de centro (10, -40) y radios 340 × 255: la cámara va detrás, mirando hacia donde vuela)
-  const H = V.heli.position, S = V.U.uHeli.value;
-  const behind = () => { const ca = (H.x - 10) / 340, sa = (H.z + 40) / 255; return Math.atan2(sa, -0.75 * ca); };
-  const aim = () => ({ x: H.x * 0.8 + S.x * 0.2, z: H.z * 0.8 + S.y * 0.2 });   // casi encima del helicóptero, un poco hacia donde apunta el foco
-  camSet({ ...aim(), dist: 400, phi: 61, theta: behind() });
-  let t0 = vt;
-  camTw = (now) => {
-    const dt = Math.min(0.1, (now - t0) / 1000); t0 = now;
-    let d = behind() - cam.theta; d = Math.atan2(Math.sin(d), Math.cos(d)); cam.theta += d * Math.min(1, dt * 1.5);
-    const a = aim(); cam.target.x += (a.x - cam.target.x) * Math.min(1, dt * 3); cam.target.z += (a.z - cam.target.z) * Math.min(1, dt * 3);
-    cam.dist += (250 - cam.dist) * Math.min(1, dt * 0.5);
-    applyCam(); return false;
-  };
-  await wait(4800);
-}
-async function sPoints() {
-  mode('cine'); whoosh(0.12, 1);
-  camTo({ x: 25, z: 15, dist: 760 * K(), phi: 50, theta: 0.12 }, 1600);
-  title('02 · El evento', 'Todos los puntos, en su sitio', '', { hold: 3000 });
-  await wait(1800);
-  const stops = [
-    ['checkin', 'Check-in', 'Punto de encuentro', '#2e8bff', 0.35],
-    ['escena', 'Escena inicial y final', '23:59 y 05:30', '#ffd21f', 0.6],
-    ['recogida2', 'Recogida', 'Una por grupo', '#ff4436', 0.9],
-    ['avituallamiento', 'Avituallamiento', 'Agua y descanso', '#8fdc2c', 0.45],
-    ['recogida1', 'Recogida', 'La otra', '#ff4436', 0.15],
-  ];
-  for (const [id, name, sub, col, th] of stops) {
-    const p = P[id];
-    await camTo({ x: p.x, z: p.z, dist: 175 * K(), phi: 58, theta: th }, 1500);
-    callout(p.x, p.z, name, sub, p.cell, col, 1250, 30);
-    await wait(950);
-  }
-  // las dos zonas no accesibles a la vez
-  const a = P.skull1, b = P.skull2;
-  await camTo({ x: (a.x + b.x) / 2, z: (a.z + b.z) / 2 + 20, dist: 380 * K(), phi: 52, theta: 0.1 }, 1700);
-  callout(a.x, a.z, 'No accesible', '', a.cell, '#e3342a', 1800, 34);
-  callout(b.x, b.z, 'No accesible', '', b.cell, '#e3342a', 1800, 34);
-  await wait(2000);
-}
-async function sTeam() {
-  ensureTeam(); mode('ui'); flash(); whoosh(0.12, 0.8);
-  HOME.forEach((h, i) => goTo(i, h[0] + 70, h[1] - 25, 12));   // pasean hacia la escena
-  camSet({ x: -60, z: 80, dist: 300, phi: 56, theta: 0.5 });
-  camFollow(me(), { dist: 330, phi: 54, spin: 0.06 });
-  await wait(700);
-  title('03 · Tu equipo', 'Tu grupo, en directo', 'Cada uno con su color y sus iniciales. Arriba, cuántos estáis en el mapa', { top: true, hold: 8600 });
-  await wait(4200);
-  untitle(); tapEl($('#btn-team')); await wait(250);
-  V.openTeam(true);
-  await wait(3600);
-  V.openTeam(false);
-  await wait(1000);
-}
-let K10 = null;
-async function sGrid() {
-  ensureTeam(); mode('ui'); untitle();
-  const ri = V.ROWS.indexOf('K');
-  const [kx, kz] = V.gridToWorld(10.5, ri + 0.5); K10 = { x: kx, z: kz };
-  // de lejos, con el borde de la cuadrícula a la vista
-  await camTo({ x: kx - 170, z: kz + 30, dist: 620 * K(), phi: 42, theta: -0.35 }, 1700);
-  title('04 · La cuadrícula', 'Letra y número', 'La del mapa impreso: tocas K, tocas 10 y todos saben dónde es K-10', { top: true, right: true, hold: 9200 });
+async function sZones() {   // 5,5 s: los puntos y las zonas, sin más
+  mode('cine'); whoosh(0.1, 0.8);
+  camTo({ x: 40, z: -20, dist: 470 * K(), phi: 49, theta: -0.12 }, 5500, ez.sine);
+  title('01 · El evento', 'Los puntos y las zonas', 'Cada uno en su casilla', { hold: 5000 });
+  await wait(900);
+  callout(P.checkin.x, P.checkin.z, 'Check-in', 'Punto de encuentro', P.checkin.cell, '#2e8bff', 1500);
   await wait(1300);
-  let s = edgeLabel('r', ri); if (s) tap(s.x, s.y);
-  await wait(200); V.pickLabel(null, ri);
-  await wait(1500);
-  s = edgeLabel('c', 10); if (s) tap(s.x, s.y);
-  await wait(200);
-  V.setLines(10, ri); V.selectCell(10, ri);
-  await camTo({ x: kx, z: kz, dist: 300, phi: 46, theta: -0.15 }, 1500);
-  await wait(3200);
+  callout(P.escena.x, P.escena.z, 'Escena inicial y final', '23:59 y 05:30', P.escena.cell, '#ffd21f', 1500);
+  await wait(1400);
+  callout(P.skull1.x, P.skull1.z, 'No accesible', '', P.skull1.cell, '#e3342a', 1500, 34);
+  callout(P.skull2.x, P.skull2.z, 'No accesible', '', P.skull2.cell, '#e3342a', 1500, 34);
+  await wait(1900);
 }
-async function sAvisos() {
+async function sTeam() {   // 6,5 s: dónde está cada uno y ubícate
+  ensureTeam(); mode('ui'); flash(); whoosh(0.1, 0.8);
+  camSet({ x: -168, z: 12, dist: 400 * K(), phi: 49, theta: 0.32 });
+  camTo({ x: -165, z: 10, dist: 380 * K(), phi: 48, theta: 0.18 }, 3600, ez.sine);
+  await wait(300);
+  title('02 · Tu grupo', 'Mira dónde está cada uno', 'En directo, con su color y sus iniciales', { top: true });
+  await wait(3300);
+  // ubícate: el botón de mi posición centra el mapa en ti
+  const b = $('#btn-me'); tapEl(b); b.setAttribute('aria-pressed', 'true');
+  await wait(200);
+  title('03 · Ubícate', 'Un toque y te ves', '', { top: true });
+  await camTo({ x: me().x, z: me().z, dist: 175, phi: 52, theta: 0.3 }, 1400);
+  await wait(1300);
+}
+async function sMeet() {   // 7 s: venid aquí, y van por las calles
   ensureTeam(); mode('ui');
-  if (!K10) { const ri = V.ROWS.indexOf('K'); V.setLines(10, ri); V.selectCell(10, ri); const [x, z] = V.gridToWorld(10.5, ri + 0.5); K10 = { x, z }; camSet({ x, z, dist: 300, phi: 46, theta: -0.15 }); }
-  title('05 · Avisos', 'Voy allí · Peligro · Reunión', 'Se marcan en el mapa y le llegan a todo el grupo al momento', { top: true, hold: 10200 });
-  await wait(900);
-  const ask = $('#hud-ask'); if (!ask.hidden) { tapEl(ask); await wait(250); ask.hidden = true; $('#hud-acts').hidden = false; }
-  await wait(900);
-  tapEl($('#hud-acts [data-t="reunion"]')); await wait(250);
+  $('#btn-me').setAttribute('aria-pressed', 'false');
+  await camTo({ x: (me().x + MEET.x) / 2, z: (me().z + MEET.z) / 2 + 8, dist: 260 * K(), phi: 50, theta: 0.3 }, 1000);
+  title('04 · Venid aquí', 'Marca un punto de reunión', 'Le llega a todo el grupo y van para allá', { top: true });
+  const s = toScreen(MEET.x, 0, MEET.z); tap(s.x, s.y);
+  const [u, v] = V.worldToGrid(MEET.x, MEET.z), cell = V.cellName(u, v);
+  await wait(150); V.selectCell(Math.floor(u), Math.floor(v));
+  await wait(800);
+  const ask = $('#hud-ask'); tapEl(ask); await wait(180); ask.hidden = true; $('#hud-acts').hidden = false;
+  await wait(650);
+  tapEl($('#hud-acts [data-t="reunion"]')); await wait(180);
   const T = V.team;
-  V.showPing({ k: 'k', t: 'reunion', id: T.me.id, name: T.me.name, col: T.me.col, pid: 'vreu', x: K10.x, z: K10.z, cell: 'K-10' });
-  V.toast(V.PING.reunion.sent('K-10'), T.me.col);
+  V.showPing({ k: 'k', t: 'reunion', id: T.me.id, name: T.me.name, col: T.me.col, pid: 'vreu', x: MEET.x, z: MEET.z, cell });
+  V.toast(V.PING.reunion.sent(cell), T.me.col);
   if (live()) { const n = ctx().currentTime; V.tone(1320, 0.09, n + 0.02, 0.09); V.tone(1760, 0.12, n + 0.14, 0.09); }
   $('#hud-acts').hidden = true; ask.hidden = false;
-  sim.forEach((_, i) => goTo(i, K10.x, K10.z, 9));
-  await wait(1300);
-  // Dani avisa de peligro junto al fuego de M-11
-  V.clearCell();
-  const [dx, dz] = cellXZ('M-11');
-  camTo({ x: (K10.x + dx) / 2, z: (K10.z + dz) / 2, dist: 470 * K(), phi: 48, theta: -0.1 }, 1600);
-  await wait(1700);
-  V.onPing({ k: 'k', t: 'peligro', id: 'mvideo1', name: 'Dani', col: V.ROSTER[1].col, pid: 'vpel', x: dx, z: dz, cell: 'M-11' });
-  await wait(1600);
-  V.onPing({ k: 'k', t: 'ir', id: 'mvideo3', name: 'Migue', col: V.ROSTER[3].col, pid: 'vir', x: K10.x, z: K10.z, cell: 'K-10' });
-  await wait(2600);
-}
-async function sWalkie() {
-  ensureTeam(); mode('ui');
-  if (!K10) { const ri = V.ROWS.indexOf('K'); const [x, z] = V.gridToWorld(10.5, ri + 0.5); K10 = { x, z }; sim.forEach((_, i) => goTo(i, x, z, 9)); }
-  camTo({ x: K10.x, z: K10.z, dist: 240, phi: 54, theta: 0.35 }, 1800);
-  title('06 · Walkie-talkie', 'Mantén y habla', 'La voz llega a todo el grupo al momento, sin salir del mapa', { top: true, hold: 9000 });
-  await wait(1200);
-  // tú hablas: botón pulsado
-  const ptt = V.pttEl, lbl = $('#ptt-lbl'); const hold = tapEl(ptt, true);
-  ptt.classList.add('on'); const t0 = vt; const iv = setInterval(() => { lbl.textContent = `Hablando ${((vt - t0) / 1000).toFixed(1).replace('.', ',')} s`; }, 100);
-  await radioTalk('Nos vemos en la reunión. Cuidado con el fuego de M once.', { voice: 0, pitch: 1 });
-  clearInterval(iv); ptt.classList.remove('on'); lbl.textContent = 'Mantén para hablar'; hold.remove();
+  goMeet();
   await wait(500);
-  await radioTalk('Recibido. Voy por el canal.', { who: 'Migue', col: V.ROSTER[3].col, voice: 1, pitch: 0.72 });
-  await wait(700);
+  V.clearCell();   // fuera la casilla: que se vea el grupo llegando
+  // en vertical el aviso queda a media pantalla: la plaza se encuadra más abajo (punto de mira 45 m más allá)
+  const L = portrait() ? 45 : 0, th = 0.12;
+  await camTo({ x: MEET.x + 18 - Math.sin(th) * L, z: MEET.z + 22 - Math.cos(th) * L, dist: 330 * K(), phi: 52, theta: th }, 1800);
+  await wait(2000);
 }
-async function sPocket() {
-  ensureTeam(); mode('cine'); flash(); whoosh(0.12, 0.9); untitle();
-  V.closeSheets();
-  // tú sigues andando con el móvil bloqueado; el resto te ve moverte
-  const m = me(); m.gx = m.x + 120; m.gz = m.z - 160; m.v = 9;
-  camSet({ x: m.x, z: m.z, dist: 260, phi: 58, theta: 0.9 });
-  camFollow(m, { dist: 230, phi: 55, spin: -0.07, lead: portrait() ? 45 : 0 });   // en vertical el móvil ocupa la mitad de abajo
-  root.classList.add('phone');
-  await wait(900);
-  title('07 · En el bolsillo', 'Móvil bloqueado, y sigues en el mapa', 'Con la app, tu grupo te ve aunque no la tengas abierta', { hold: 7600, top: portrait() });
-  await wait(900);
-  root.classList.add('noti'); try { navigator.vibrate?.(60); } catch (e) { /* opcional */ }
-  if (live()) V.tone(1480, 0.08, ctx().currentTime + 0.02, 0.05);
-  await wait(7000);
-  root.classList.remove('phone', 'noti');
-  m.v = 6;
-}
-async function sDayNight() {
-  mode('cine'); untitle();
-  camSet({ x: 40, z: 0, dist: 640 * K(), phi: 57, theta: -0.55 });
-  camTo({ x: 20, z: 10, dist: 560 * K(), phi: 52, theta: 0.25 }, 6000, ez.lin);
-  await wait(400);
-  title('08 · De día o de noche', 'También a la luz del día', 'Para mirar el recorrido antes de que anochezca', { hold: 4600 });
-  V.setNight(0);
-  await wait(3000);
-  V.setNight(1);
-  await wait(2600);
-}
-async function sPrivacy() {
-  mode('cine'); untitle();
-  camTo({ x: 0, z: 0, dist: 1300 * K(), phi: 40, theta: 0.8 }, 6000, ez.sine);
-  await wait(300);
-  title('09 · Privado', 'Sin cuentas ni registros', 'Todo viaja cifrado de extremo a extremo: solo tu grupo sabe dónde estás', { hold: 5200 });
-  await wait(5900);
-}
-async function sEnd() {
+async function sEnd() {   // 3,5 s
   mode('cine', { labels: false }); untitle();
-  camTo({ x: 0, z: 10, dist: 1900 * K(), phi: 30, theta: 1.25 }, 7000, ez.out);
-  await wait(600);
+  camTo({ x: -60, z: 0, dist: 1500 * K(), phi: 34, theta: 0.6 }, 3500, ez.out);
+  await wait(250);
   hit(0.32);
   root.classList.remove('bars');
   root.querySelector('.v-end').classList.add('show');
-  await wait(6500);
+  await wait(3300);
 }
-const SCENES = [sIntro, sEstablish, sTerrain, sPoints, sTeam, sGrid, sAvisos, sWalkie, sPocket, sDayNight, sPrivacy, sEnd];
+const SCENES = [sIntro, sMap, sZones, sTeam, sMeet, sEnd];
 
 // ---------------------------------------------------------------- arranque y teclas
 const startEl = root.querySelector('.v-start'), goEl = startEl.querySelector('.go');
@@ -3726,10 +3583,11 @@ async function start() {
   const from = Math.max(0, Math.min(SCENES.length - 1, +(location.hash.match(/s=(\d+)/) || [])[1] || 0));
   running = true; last = performance.now();
   if (from > 0) { root.querySelector('.v-fade').classList.add('on'); if (live()) V.startAmbient(false); await wait(150); fade(false); }
+  if (from >= 4) { ensureTeam(); }
   for (let i = from; i < SCENES.length; i++) { window.__vid.scene = i; await SCENES[i](); }
   window.__vid.done = true;
 }
-function setPause(v) { paused = v; root.querySelector('.v-pause').hidden = !v; try { v ? window.speechSynthesis?.pause() : window.speechSynthesis?.resume(); } catch (e) { /* opcional */ } }
+function setPause(v) { paused = v; root.querySelector('.v-pause').hidden = !v; }
 startEl.addEventListener('click', start);
 root.querySelector('.v-catch').addEventListener('click', () => setPause(!paused));
 window.addEventListener('keydown', (e) => {
@@ -3739,7 +3597,7 @@ window.addEventListener('keydown', (e) => {
   else { if (running) { e.preventDefault(); e.stopPropagation(); } return; }   // con el vídeo en marcha, las teclas del mapa no mueven nada
   e.preventDefault(); e.stopPropagation();
 }, { capture: true });
-window.__vid = { start, scene: -1, done: false, get vt() { return vt; } };
+window.__vid = { start, scene: -1, done: false, findPath, get vt() { return vt; } };
 </script>
 </body>
 </html>
