@@ -52,6 +52,7 @@ body {
 #app { position: fixed; inset: 0; overflow: hidden; background: var(--night); }
 #gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; outline: none; }
 #labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.vignette { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse 115% 95% at 50% 46%, transparent 52%, rgba(2, 3, 5, .5) 100%); }
 
 button { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--ember); outline-offset: 2px; }
@@ -74,14 +75,6 @@ button { font: inherit; color: inherit; }
 }
 .when { margin: 6px 0 0; font-size: 17px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
 .when .mono { font-family: var(--f-mono); font-size: 14px; font-weight: 600; letter-spacing: 0; }
-.countdown {
-  display: inline-flex; align-items: center; gap: 8px; margin-top: 8px; padding: 5px 10px 5px 8px;
-  border: 1px solid rgba(227, 52, 42, .55); background: rgba(40, 6, 4, .55); border-radius: 3px;
-  font-family: var(--f-mono); font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums;
-  text-shadow: none; pointer-events: auto;
-}
-.countdown::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--blood); box-shadow: 0 0 10px var(--blood); animation: blink 1.2s steps(2, start) infinite; }
-.countdown.live::before { background: var(--ember); box-shadow: 0 0 10px var(--ember); }
 @keyframes blink { to { visibility: hidden; } }
 
 /* ---------- herramientas ---------- */
@@ -126,17 +119,10 @@ button { font: inherit; color: inherit; }
 .mdet ol { margin: 0 0 12px; padding-left: 20px; display: grid; gap: 6px; font-size: 14.5px; line-height: 1.35; }
 .layers label { display: flex; align-items: center; gap: 10px; padding: 5px 0; font-size: 16px; font-weight: 600; cursor: pointer; }
 .layers input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--blood); margin: 0; }
-.goto { display: flex; gap: 6px; }
-.goto input {
-  flex: 1; min-width: 0; height: 40px; padding: 0 10px; background: #050607; color: var(--bone);
-  border: 1px solid var(--line); border-radius: 3px; font-family: var(--f-mono); font-size: 16px; text-transform: uppercase;
-}
-.goto button { height: 40px; padding: 0 14px; background: var(--blood); border: 0; border-radius: 3px; font-weight: 700; letter-spacing: .06em; cursor: pointer; color: #fff; }
-.goto-msg { margin: 6px 0 0; font-size: 13px; color: var(--ash); min-height: 1em; }
 
 /* ---------- leyenda (desplegable) ---------- */
 .legend {
-  position: absolute; left: var(--gap-x); bottom: calc(var(--gap-b) + 24px); z-index: 8;
+  position: absolute; left: var(--gap-x); bottom: calc(var(--gap-b) + 24px); z-index: 9;
   display: flex; flex-direction: column-reverse; align-items: flex-start; gap: 6px; max-width: calc(100% - 32px);
 }
 .chip {
@@ -288,7 +274,17 @@ button { font: inherit; color: inherit; }
 .toast { display: flex; align-items: center; gap: 8px; padding: 9px 12px; background: var(--panel-solid); border: 1px solid var(--line); border-radius: 4px; box-shadow: 0 8px 24px rgba(0,0,0,.6); color: var(--bone); font-size: 15px; font-weight: 600; text-align: left; pointer-events: auto; }
 .toast i { width: 10px; height: 10px; border-radius: 50%; flex: none; }
 .toast.action { cursor: pointer; border-color: var(--ember); }
-#ping-btn { width: 100%; height: 34px; margin-top: 6px; background: var(--ember); color: #1a0d00; border: 0; border-radius: 3px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; cursor: pointer; }
+.readout.acting { min-width: 288px; max-width: 320px; }
+.acts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-top: 8px; }
+.acts button {
+  height: 38px; padding: 0 4px; border: 1px solid transparent; border-radius: 3px; cursor: pointer;
+  font-size: 13.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; line-height: 1;
+}
+.acts [data-t="ir"] { background: rgba(236,229,211,.1); border-color: var(--line); color: var(--bone); }
+.acts [data-t="peligro"] { background: var(--blood); color: #fff; }
+.acts [data-t="reunion"] { background: var(--c-escena); color: #1a1400; }
+.tag.ping.peligro { border-color: var(--blood); background: rgba(48, 6, 4, .92); }
+.tag.ping.reunion { border-color: var(--c-escena); }
 .tag.member {
   width: 32px; height: 32px; padding: 0; gap: 0; justify-content: center; border-radius: 50%;
   background: var(--c); border: 2px solid rgba(5,7,10,.75); color: #05070a; font-size: 13px; font-weight: 800; letter-spacing: 0;
@@ -296,6 +292,22 @@ button { font: inherit; color: inherit; }
 }
 .tag.member.me { border-color: #fff; box-shadow: 0 0 0 3px rgba(255,255,255,.25), 0 0 16px var(--c); }
 .tag.member.stale { opacity: .5; }
+.tag.member .age {
+  position: absolute; left: 50%; top: calc(100% + 3px); transform: translateX(-50%); padding: 1px 5px; border-radius: 2px;
+  background: rgba(8, 9, 11, .9); color: var(--bone); font-family: var(--f-mono); font-size: 10.5px; font-weight: 600; white-space: nowrap;
+}
+/* modo bolsillo: pantalla negra (OLED casi no gasta), sin 3D; GPS y walkie siguen vivos */
+.pocket {
+  position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; align-content: center; gap: 18px;
+  background: #000; text-align: center; touch-action: none; user-select: none; -webkit-user-select: none;
+}
+.pocket p { margin: 0; padding: 0 24px; font-family: var(--f-mono); font-size: 12px; line-height: 1.6; letter-spacing: .1em; text-transform: uppercase; color: rgba(236,229,211,.4); }
+.pocket .hold {
+  --p: 0; width: 132px; height: 132px; border-radius: 50%; padding: 0; cursor: pointer; touch-action: none;
+  background: radial-gradient(#000 64%, transparent 65%), conic-gradient(rgba(236,229,211,.55) calc(var(--p) * 1turn), rgba(236,229,211,.1) 0);
+  border: 0; color: rgba(236,229,211,.5); font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+}
+body.pocket .talking, body.pocket .toasts { z-index: 31; }
 .tag.ping i { font-size: 10px; font-weight: 800; color: #05070a; }
 .tag.ping { border-color: var(--ember); }
 
@@ -342,12 +354,12 @@ button { font: inherit; color: inherit; }
   .brand { max-width: calc(100% - 110px); }
   .eyebrow { font-size: 10px; }
   .when { font-size: 15px; }
-  .countdown { font-size: 11.5px; }
   .eyebrow { display: none; }
   .tools { flex-wrap: nowrap; }
   .tbtn .lbl { display: none; }
   .tbtn { width: 44px; height: 42px; justify-content: center; padding: 0; }
   .layers, .team { top: calc(var(--gap-t) + 50px); left: var(--gap-x); right: var(--gap-xr); width: auto; max-height: calc(100% - var(--gap-t) - 170px); }
+  body.in-team .hud { bottom: calc(var(--gap-b) + 112px); }
   .hint li { font-size: 15px; }
   .readout .v { font-size: 19px; }
   .ptt { width: 78px; height: 78px; }
@@ -359,20 +371,19 @@ button { font: inherit; color: inherit; }
   .place { font-size: 11px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .countdown::before { animation: none; }
   .loader { transition: none; }
 }
 </style>
 
 <div id="app">
   <canvas id="gl" aria-label="Mapa 3D de Puerto Venecia" tabindex="0"></canvas>
+  <div class="vignette" aria-hidden="true"></div>
   <div id="labels"></div>
 
   <header class="brand">
     <p class="eyebrow">Love Zombies · mapa del evento</p>
     <h1>Puerto Venecia</h1>
     <p class="when">Sábado 31 oct 2026 · <span class="mono">23:59 → 06:00</span></p>
-    <p class="countdown" id="countdown" aria-live="polite">Calculando…</p>
   </header>
 
   <nav class="tools" aria-label="Opciones">
@@ -400,14 +411,8 @@ button { font: inherit; color: inherit; }
       <label><input type="checkbox" id="ly-fx" checked> Fuego y humo</label>
       <label><input type="checkbox" id="ly-zombies" checked> Zombis</label>
       <label><input type="checkbox" id="ly-heli" checked> Helicóptero</label>
-    </details>
-    <details class="mdet">
-      <summary>Ir a una celda</summary>
-      <form class="goto" id="goto" autocomplete="off">
-        <input id="goto-input" type="text" inputmode="text" maxlength="5" placeholder="K-12" aria-label="Ir a celda, por ejemplo K-12">
-        <button type="submit">Ir</button>
-      </form>
-      <p class="goto-msg" id="goto-msg">Filas B–S, columnas 1–25.</p>
+      <label><input type="checkbox" id="ly-saver"> Ahorro de batería</label>
+      <p class="fine">Con el ahorro, fuego, zombis y helicóptero se quedan quietos mientras no toques el mapa, y se dibuja con menos resolución.</p>
     </details>
     <details class="mdet">
       <summary>Permisos</summary>
@@ -441,6 +446,8 @@ button { font: inherit; color: inherit; }
       <p class="status warn" id="tl-geo" hidden></p>
       <ul id="tl-list"></ul>
       <div class="trow"><button type="button" id="tl-me">Centrar en mí</button><button type="button" id="tl-follow" aria-pressed="false">Seguirme</button></div>
+      <div class="trow"><button type="button" id="tl-pocket">Modo bolsillo</button></div>
+      <p class="fine" id="tl-pocket-txt">Pantalla negra que casi no gasta: sigues enviando la ubicación y oyendo el walkie. Si sales de la web o bloqueas el móvil, el equipo deja de verte.</p>
       <button type="button" class="permline" id="tl-perm"><span id="tl-perm-txt">Permisos</span><span class="go">Revisar</span></button>
       <button type="button" class="linkbtn" id="tl-leave">Salir del equipo</button>
     </div>
@@ -493,12 +500,16 @@ button { font: inherit; color: inherit; }
   </div>
 
   <div class="hud" id="hud" hidden>
-    <div class="readout" aria-live="polite">
+    <div class="readout" id="readout" aria-live="polite">
       <button type="button" class="x x2" id="hud-close" aria-label="Quitar celda">×</button>
       <div class="k">Celda</div>
       <div class="v" id="cell-v">—</div>
       <div class="s" id="cell-s">Toca el mapa</div>
-      <button type="button" id="ping-btn" hidden>Avisar aquí</button>
+      <div class="acts" id="hud-acts" role="group" aria-label="Avisar al equipo" hidden>
+        <button type="button" data-t="ir">Voy allí</button>
+        <button type="button" data-t="peligro">Peligro</button>
+        <button type="button" data-t="reunion">Reunión aquí</button>
+      </div>
     </div>
   </div>
 
@@ -514,6 +525,10 @@ button { font: inherit; color: inherit; }
     </button>
   </div>
   <div class="toasts" id="toasts" aria-live="polite"></div>
+  <div class="pocket" id="pocket" hidden>
+    <p id="pocket-txt">Modo bolsillo<br>Ubicación y walkie activos</p>
+    <button type="button" class="hold" id="pocket-hold">Mantén para volver</button>
+  </div>
 
   <div class="hint" id="hint" role="dialog" aria-label="Cómo moverse por el mapa" hidden>
     <h2>Cómo moverte</h2>
@@ -554,6 +569,10 @@ button { font: inherit; color: inherit; }
 <script type="module">
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
 THREE.ColorManagement.enabled = false;
 const D = JSON.parse(document.getElementById('scene-data').textContent);
@@ -630,10 +649,32 @@ try {
 }
 const DPR = Math.min(window.devicePixelRatio || 1, 1.75);
 renderer.setPixelRatio(DPR);
+// batería: solo se dibuja a tope mientras algo se mueve; en reposo, 30 fps (móvil) o casi nada con el ahorro activado
+const COARSE = matchMedia('(pointer: coarse)').matches;
+const power = { saver: false, wakeUntil: 0, last: 0, pocket: false };
+function kick(ms = 700) { power.wakeUntil = Math.max(power.wakeUntil, performance.now() + ms); }
+function setSaver(v) {
+  power.saver = v;
+  try { localStorage.setItem('pv-saver', v ? '1' : '0'); } catch (e) { /* sin almacenamiento */ }
+  renderer.setPixelRatio(v ? Math.min(DPR, 1.25) : DPR);
+  renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
+  composer.setPixelRatio(renderer.getPixelRatio()); composer.setSize(canvas.clientWidth, canvas.clientHeight);
+  kick();
+}
 renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
 renderer.setClearColor(0x07090c, 1);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(45, 1, 2, 14000);
+// brillo de las luces de noche (fuego, ventanas, farolas, haces): se dibuja en un búfer HDR y lo que pasa de 1 se derrama
+const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 }));
+const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.6, 0.45, 0.85);
+// algún píxel suelto de la escena sale NaN o infinito: en pantalla era un punto negro, pero el desenfoque lo convierte en bloques
+{
+  const hp = bloom.materialHighPassFilter, fetch = 'vec4 texel = texture2D( tDiffuse, vUv );';
+  if (hp.fragmentShader.includes(fetch)) hp.fragmentShader = hp.fragmentShader.replace(fetch, `${fetch} if (any(isnan(texel)) || any(isinf(texel))) texel = vec4(0.0); texel = clamp(texel, 0.0, 6.0);`);
+  else console.warn('bloom: no se pudo filtrar la entrada');
+}
+composer.addPass(new RenderPass(scene, camera)); composer.addPass(bloom); composer.addPass(new OutputPass());
 
 // ---------------------------------------------------------------- uniforms compartidos
 const NF = 6;
@@ -655,6 +696,7 @@ const U = {
   uGridM: { value: new THREE.Vector4(...GINV) },
   uGridO: { value: new THREE.Vector2(G.x[2], G.z[2]) },
   uSel: { value: new THREE.Vector2(-99, -99) },
+  uLine: { value: new THREE.Vector2(-99, -99) },   // columna y fila resaltadas por el buscador (-99 = ninguna)
 };
 
 const COMMON = /* glsl */`
@@ -665,6 +707,19 @@ uniform vec4 uHeli; uniform vec3 uFogCol; uniform float uFogDen; uniform vec3 uM
 uniform vec4 uDet; uniform vec4 uWide;
 uniform sampler2D tDet; uniform sampler2D tWide; uniform sampler2D tLight;
 uniform float uLampK;
+uniform vec4 uGridM; uniform vec2 uGridO; uniform vec2 uLine;
+vec2 gridUV(vec2 xz){ vec2 q = xz - uGridO; return vec2(uGridM.x * q.x + uGridM.y * q.y, uGridM.z * q.x + uGridM.w * q.y); }
+// franjas del buscador de casilla: la columna llega hasta los números del borde y la fila hasta las letras
+vec2 lineMask(vec2 g){
+  float c = step(uLine.x, g.x) * step(g.x, uLine.x + 1.0) * step(-1.0, g.y) * step(g.y, 19.0);
+  float r = step(uLine.y, g.y) * step(g.y, uLine.y + 1.0) * step(0.0, g.x) * step(g.x, 27.0);
+  return vec2(c, r);
+}
+vec3 lineTint(vec3 col, vec2 xz){
+  if (uLine.x < -50.0 && uLine.y < -50.0) return col;
+  vec2 m = lineMask(gridUV(xz)); float k = max(m.x, m.y);
+  return mix(col, vec3(1.0, 0.32, 0.22), k * 0.24) + vec3(0.14, 0.03, 0.02) * k;
+}
 float hash12(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
 vec2 rectUV(vec2 xz, vec4 r){ vec2 t = (xz - r.xy) / (r.zw - r.xy); return vec2(t.x, 1.0 - t.y); }
 float rectMask(vec2 xz, vec4 r, float m){ vec2 a = smoothstep(r.xy, r.xy + m, xz) * (1.0 - smoothstep(r.zw - m, r.zw, xz)); return a.x * a.y; }
@@ -818,7 +873,7 @@ const ground = new THREE.Mesh(new THREE.PlaneGeometry(16000, 16000).rotateX(-Mat
   polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 2,
   vertexShader: `varying vec3 vW; void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
   fragmentShader: COMMON + /* glsl */`
-    uniform float uGrid; uniform vec4 uGridM; uniform vec2 uGridO; uniform vec2 uSel;
+    uniform float uGrid; uniform vec2 uSel;
     varying vec3 vW;
     void main(){
       vec3 a = groundAlbedo(vW.xz);
@@ -829,8 +884,7 @@ const ground = new THREE.Mesh(new THREE.PlaneGeometry(16000, 16000).rotateX(-Mat
       vec3 col = mix(day, night, uNight);
 
       // cuadrícula del mapa impreso
-      vec2 q = vW.xz - uGridO;
-      vec2 g = vec2(uGridM.x * q.x + uGridM.y * q.y, uGridM.z * q.x + uGridM.w * q.y);
+      vec2 g = gridUV(vW.xz);
       vec2 fw = max(fwidth(g), vec2(1e-5));
       float inG = step(1.0, g.x) * step(g.x, 26.0) * step(0.0, g.y) * step(g.y, 18.0);
       vec2 dl = abs(fract(g + 0.5) - 0.5) / fw;
@@ -845,6 +899,12 @@ const ground = new THREE.Mesh(new THREE.PlaneGeometry(16000, 16000).rotateX(-Mat
       vec2 db = vec2(min(abs(g.x - 1.0), abs(g.x - 26.0)), min(abs(g.y), abs(g.y - 18.0))) / fw;
       float bd = (1.0 - clamp(min(db.x, db.y) - 0.9, 0.0, 1.0)) * nearFrame;
       col = mix(col, vec3(0.89, 0.2, 0.16), uGrid * bd * 0.9);
+      // columna y fila del buscador, con el borde de la franja marcado
+      col = lineTint(col, vW.xz);
+      vec2 lm = lineMask(g);
+      vec2 dc = min(g - uLine, uLine + 1.0 - g) / fw;
+      float le = max(lm.x * (1.0 - clamp(dc.x - 1.2, 0.0, 1.0)), lm.y * (1.0 - clamp(dc.y - 1.2, 0.0, 1.0)));
+      col = mix(col, vec3(1.0, 0.42, 0.3), le * 0.85);
       // celda seleccionada
       vec2 s = g - uSel;
       float inS = step(0.0, s.x) * step(s.x, 1.0) * step(0.0, s.y) * step(s.y, 1.0);
@@ -931,7 +991,7 @@ function buildBuildings() {
         vec3 nightA = roof > 0.5 ? nightGrade(alb) : alb;
         vec3 night = nightA * (amb + lamp + fireLight(vW, n, 0.25) + heliLight(vW) * step(0.5, roof)) + emis;
         vec3 day = alb * (roof > 0.5 ? 1.0 : 0.5 + 0.55 * max(dot(n, normalize(vec3(-0.35, 0.85, 0.4))), 0.0));
-        gl_FragColor = vec4(applyFog(mix(day, night, uNight), vW), 1.0);
+        gl_FragColor = vec4(applyFog(lineTint(mix(day, night, uNight), vW.xz), vW), 1.0);
       }`,
   });
   scene.add(new THREE.Mesh(geo, mat));
@@ -974,7 +1034,7 @@ buildBuildings();
         spec += vec3(0.75, 0.8, 0.95) * pow(max(dot(n, Hm), 0.0), 260.0) * 2.5 * uNight;
         vec4 L = lampAt(vW.xz);
         col += L.rgb * 0.25 * uNight + spec + heliLight(vW) * 0.4;
-        gl_FragColor = vec4(applyFog(col, vW), 1.0);
+        gl_FragColor = vec4(applyFog(lineTint(col, vW.xz), vW), 1.0);
       }`,
   });
   const water = new THREE.Mesh(geo, mat);
@@ -1419,6 +1479,12 @@ for (const pl of D.places) {
 }
 const groundText = new THREE.Group(); scene.add(groundText);
 const gridText = new THREE.Group(); scene.add(gridText);
+const edgeLabels = { c: {}, r: {} };   // rótulos del borde por columna y fila, para resaltarlos desde el buscador
+function paintEdgeLabels() {
+  const on = (list, sel) => list?.forEach((m) => { m.material.color.set(sel ? 0xff5a44 : 0xffffff); m.scale.setScalar(sel ? 1.35 : 1); });
+  for (const c in edgeLabels.c) on(edgeLabels.c[c], +c === U.uLine.value.x);
+  for (const r in edgeLabels.r) on(edgeLabels.r[r], +r === U.uLine.value.y);
+}
 function textPlane(text, { size = 64, font = '700', family = '"Barlow Condensed", "Arial Narrow", sans-serif', color = '#ece5d3', worldH = 10, stroke = 'rgba(0,0,0,0.75)', spacing = 0 }) {
   const c = document.createElement('canvas'), x = c.getContext('2d');
   x.font = `${font} ${size}px ${family}`;
@@ -1446,9 +1512,10 @@ async function buildTexts() {
     layFlat(m, r.x, r.z, r.a, 1.0); groundText.add(m);
   }
   const gAng = Math.atan2(G.z[0], G.x[0]);
-  const lab = (t, u, v) => { const m = textPlane(t, { size: 72, family: '"IBM Plex Mono", ui-monospace, monospace', font: '600', worldH: 15, color: '#f1ead7' }); const [x, z] = gridToWorld(u, v); layFlat(m, x, z, gAng, 1.2); gridText.add(m); };
-  for (let c = 1; c <= 25; c++) { lab(String(c), c + 0.5, -0.5); lab(String(c), c + 0.5, 18.5); }
-  for (let r = 0; r < 18; r++) { lab(ROWS[r], 0.5, r + 0.5); lab(ROWS[r], 26.5, r + 0.5); }
+  const lab = (t, u, v) => { const m = textPlane(t, { size: 72, family: '"IBM Plex Mono", ui-monospace, monospace', font: '600', worldH: 15, color: '#f1ead7' }); const [x, z] = gridToWorld(u, v); layFlat(m, x, z, gAng, 1.2); gridText.add(m); return m; };
+  for (let c = 1; c <= 25; c++) edgeLabels.c[c] = [lab(String(c), c + 0.5, -0.5), lab(String(c), c + 0.5, 18.5)];
+  for (let r = 0; r < 18; r++) edgeLabels.r[r] = [lab(ROWS[r], 0.5, r + 0.5), lab(ROWS[r], 26.5, r + 0.5)];
+  paintEdgeLabels(); kick();
   // rótulos de neón en fachadas
   for (const name of ['IKEA', 'El Corte Inglés', 'Decathlon', 'Distrito Ocio']) {
     const b = D.buildings.find((q) => q.n === name); if (!b) continue;
@@ -1598,7 +1665,7 @@ function updateHeli(t) {
   U.uHeli.value.set(tx, tz, rad * 1.15, 1.25 * U.uNight.value);
 }
 
-// ---------------------------------------------------------------- leyenda, cuenta atrás, controles de UI
+// ---------------------------------------------------------------- leyenda y controles de UI
 const legend = $('#legend-list'), legendBtn = $('#legend-toggle');
 function setLegend(open) { legend.hidden = !open; legendBtn.setAttribute('aria-expanded', String(open)); }
 legendBtn.addEventListener('click', () => setLegend(legend.hidden));
@@ -1626,18 +1693,6 @@ for (const it of legendItems) {
   li.appendChild(b); legend.appendChild(li);
 }
 
-const START = Date.UTC(2026, 9, 31, 22, 59), FINAL = Date.UTC(2026, 10, 1, 4, 30), END = Date.UTC(2026, 10, 1, 5, 0);
-const cd = $('#countdown');
-const fmt = (ms) => { const s = Math.max(0, Math.floor(ms / 1000)); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), ss = s % 60; return h > 0 ? `${h} h ${String(m).padStart(2, '0')} min` : `${m} min ${String(ss).padStart(2, '0')} s`; };
-function tickCountdown() {
-  const now = Date.now();
-  if (now < START) { cd.textContent = `Escena inicial en ${fmt(START - now)}`; cd.classList.remove('live'); }
-  else if (now < FINAL) { cd.textContent = `En curso · escena final en ${fmt(FINAL - now)}`; cd.classList.add('live'); }
-  else if (now < END) { cd.textContent = `Escena final · cierre en ${fmt(END - now)}`; cd.classList.add('live'); }
-  else { cd.textContent = 'Evento terminado · 06:00'; cd.classList.remove('live'); }
-}
-tickCountdown(); setInterval(tickCountdown, 1000);
-
 // noche / día
 let nightTarget = 1;
 $('#btn-night').addEventListener('click', (e) => {
@@ -1655,21 +1710,23 @@ $('#ly-names').addEventListener('change', (e) => { showNames = e.target.checked;
 $('#ly-fx').addEventListener('change', (e) => { fxGroup.visible = e.target.checked; for (let i = 0; i < fires.length; i++) U.uFire.value[i].y = e.target.checked ? fires[i].y + 3 : -5000; });
 $('#ly-zombies').addEventListener('change', (e) => { zMesh.visible = e.target.checked; });
 $('#ly-heli').addEventListener('change', (e) => { heli.visible = cone.visible = e.target.checked; if (!e.target.checked) U.uHeli.value.w = 0; });
-$('#goto').addEventListener('submit', (e) => {
-  e.preventDefault();
-  const v = $('#goto-input').value.trim().toUpperCase().replace(/\s+/g, '');
-  const msg = $('#goto-msg');
-  let row = null, col = NaN, m = v.match(/^([A-Z])-?(\d{1,2})$/);
-  if (m) { row = m[1]; col = parseInt(m[2], 10); } else if ((m = v.match(/^(\d{1,2})-?([A-Z])$/))) { row = m[2]; col = parseInt(m[1], 10); }
-  if (!row) { msg.textContent = 'Formato: letra B–S y número 1–25, por ejemplo K-12.'; return; }
-  const r = ROWS.indexOf(row);
-  if (r < 0 || col < 1 || col > 25) { msg.textContent = 'Esa celda no existe en el mapa (filas B–S, columnas 1–25).'; return; }
-  selectCell(col, r);
-  const [x, z] = gridToWorld(col + 0.5, r + 0.5);
-  flyTo(new THREE.Vector3(x, 0, z), 170, 50);
-  layersEl.hidden = true; layersBtn.setAttribute('aria-expanded', 'false');
-  msg.textContent = `Celda ${row}-${col} marcada en el mapa.`;
-});
+$('#ly-saver').addEventListener('change', (e) => setSaver(e.target.checked));
+
+// ---------------------------------------------------------------- casilla por rótulos: tocar un número del borde marca la columna, una letra marca la fila
+const pick = { col: null, row: null };
+function setLines(c, r) { pick.col = c; pick.row = r; U.uLine.value.set(c ?? -99, r ?? -99); paintEdgeLabels(); kick(); }
+function pickLabel(c, r) {
+  setLines(c, r);
+  if (c != null && r != null) {
+    selectCell(c, r);
+    const [x, z] = gridToWorld(c + 0.5, r + 0.5); onCellTapped({ x, z });
+    flyTo(new THREE.Vector3(x, 0, z), Math.min(cam.dist, 340), Math.min(THREE.MathUtils.radToDeg(cam.phi), 45), null, 1200);
+  } else if (c != null || r != null) {
+    U.uSel.value.set(-99, -99); target.visible = false; $('#hud').hidden = false; setActs(false);
+    cellV.textContent = c != null ? `?-${c}` : `${ROWS[r]}-?`;
+    cellS.textContent = c != null ? 'Ahora toca una letra del borde' : 'Ahora toca un número del borde';
+  } else clearCell();
+}
 
 // ---------------------------------------------------------------- cámara estilo mapa (arrastrar, pellizcar, girar, inclinar)
 const cam = {
@@ -1770,15 +1827,44 @@ $('#compass').addEventListener('click', () => flyTo(cam.target, null, null, 0, 8
 
 // ---------------------------------------------------------------- gestos (ratón y táctil)
 const cellV = $('#cell-v'), cellS = $('#cell-s');
+// el punto de la casilla elegida: haz de luz y anillo, visibles desde lejos y por encima de los edificios
+const target = new THREE.Group(); target.visible = false; scene.add(target);
+{
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 4.5, 260, 20, 1, true).translate(0, 130, 0), beamMat('#ff5a44')); beam.renderOrder = 14;
+  const ring = new THREE.Mesh(new THREE.RingGeometry(0.85, 1, 64).rotateX(-Math.PI / 2), ringMat('#ff5a44')); ring.position.y = 1.3; ring.renderOrder = 7;
+  target.add(beam, ring); target.userData.ring = ring;
+}
 function selectCell(c, r) {
   U.uSel.value.set(c, r);
+  const [x, z] = gridToWorld(c + 0.5, r + 0.5);
+  target.position.set(x, 0, z); target.visible = true;
   $('#hud').hidden = false;
   cellV.textContent = `${ROWS[r]}-${c}`;
-  const here = [...markers.filter((m) => m.cell === `${ROWS[r]}-${c}`).map((m) => m.name), ...skulls.filter((s) => s.cells.includes(`${ROWS[r]}-${c}`)).map(() => 'Zona no accesible')];
-  cellS.textContent = here.length ? here.join(' · ') : 'Celda marcada en el mapa';
+  cellInfo();
+  setActs(team.on);
+  kick();
 }
-function clearCell() { U.uSel.value.set(-99, -99); $('#hud').hidden = true; $('#ping-btn').hidden = true; }
-$('#hud-close').addEventListener('click', clearCell);
+// qué hay en la casilla y cuánto pilla desde donde estás (si el GPS ya te sitúa en el mapa)
+function cellInfo() {
+  const c = U.uSel.value.x, r = U.uSel.value.y; if (c < 0) return;
+  const name = `${ROWS[r]}-${c}`;
+  const parts = [...markers.filter((m) => m.cell === name).map((m) => m.name), ...skulls.filter((s) => s.cells.includes(name)).map(() => 'Zona no accesible')];
+  const me = team.on && team.meEntry?.inside ? team.meEntry : null;
+  if (me) {
+    const d = Math.hypot(target.position.x - me.tx, target.position.z - me.tz);
+    const here = cellName(...worldToGrid(me.tx, me.tz)) === name;
+    parts.push(here ? 'Estás aquí' : `A ${fmtDist(d)} de ti · ${Math.max(1, Math.round(d / 75))} min andando`);
+  }
+  cellS.textContent = parts.length ? parts.join(' · ') : 'Casilla marcada en el mapa';
+}
+// avisos al equipo desde la casilla (solo con el modo equipo activo)
+function setActs(v) { $('#hud-acts').hidden = !v; $('#readout').classList.toggle('acting', v); }
+function clearCell() {
+  U.uSel.value.set(-99, -99); $('#hud').hidden = true; setActs(false); target.visible = false;
+  if (pick.col != null || pick.row != null) setLines(null, null);
+  kick();
+}
+$('#hud-close').addEventListener('click', () => clearCell());
 const ptrs = new Map();
 let gest = null, lastTap = 0, lastTapXY = [0, 0];
 const _gp = new THREE.Vector3();
@@ -1883,7 +1969,13 @@ function handleTap(x, y) {
   lastTap = now; lastTapXY = [x, y];
   const p = groundAt(x, y, new THREE.Vector3()); if (!p) return;
   const [u, v] = worldToGrid(p.x, p.z);
+  if (gridText.visible) {
+    // franja de números (arriba y abajo) y de letras (a los lados), con algo de margen para el dedo
+    if (u >= 1 && u < 26 && ((v >= -1.6 && v < 0) || (v >= 18 && v < 19.6))) { const c = Math.floor(u); pickLabel(pick.col === c ? null : c, pick.row); return; }
+    if (v >= 0 && v < 18 && ((u >= -0.6 && u < 1) || (u >= 26 && u < 27.6))) { const r = Math.floor(v); pickLabel(pick.col, pick.row === r ? null : r); return; }
+  }
   if (!cellName(u, v)) { clearCell(); return; }
+  if (pick.col != null || pick.row != null) setLines(null, null);
   selectCell(Math.floor(u), Math.floor(v));
   onCellTapped(p);
 }
@@ -1931,10 +2023,11 @@ $('#btn-help').addEventListener('click', () => { hintEl.hidden ? showHint() : hi
 // ---------------------------------------------------------------- tamaño
 function resize() {
   const w = canvas.clientWidth, h = canvas.clientHeight;
-  renderer.setSize(w, h, false);
+  renderer.setSize(w, h, false); composer.setSize(w, h);
   camera.aspect = w / h;
   camera.fov = camera.aspect < 0.8 ? 58 : 45;
   camera.updateProjectionMatrix();
+  kick();
 }
 window.addEventListener('resize', resize);
 resize();
@@ -1960,10 +2053,20 @@ function updateLabels() {
     if (L.kind === 'place') L.el.style.opacity = String(Math.min(1, Math.max(0, ((L.far || 1300) - dist) / 300)));
   }
 }
+const busy = () => flight || cam.zoomAnim || cam.rotAnim || ptrs.size > 0 || cam.vel.lengthSq() > 0.25
+  || Math.abs(nightTarget - U.uNight.value) > 0.003 || Math.abs(gridTarget - U.uGrid.value) > 0.003
+  || (team.follow && team.meEntry?.inside && !ptrs.size && Math.hypot(team.meEntry.x - cam.target.x, team.meEntry.z - cam.target.z) > 1);
 function frame() {
-  const dt = Math.min(clock.getDelta(), 0.1);
-  t += dt;
+  requestAnimationFrame(frame);
+  if (power.pocket) return;
   const now = performance.now();
+  const active = busy() || now < power.wakeUntil;
+  const idleFps = power.saver ? 1 : COARSE ? 30 : 60;
+  if (!active && now - power.last < 1000 / idleFps - 4) return;
+  power.last = now;
+  const real = Math.min(clock.getDelta(), 0.1);
+  const dt = active || !power.saver ? real : 0;   // con ahorro y sin tocar nada, el ambiente se queda quieto
+  t += dt;
   U.uTime.value = t;
   U.uNight.value += (nightTarget - U.uNight.value) * Math.min(1, dt * 2.5);
   U.uGrid.value += (gridTarget - U.uGrid.value) * Math.min(1, dt * 5);
@@ -1988,24 +2091,30 @@ function frame() {
     m.rings.forEach((r, k) => { const ph = (t * 0.45 + k * 0.5 + m.phase) % 1; const s = 4 + ph * 14; r.scale.set(s, 1, s); r.material.uniforms.uA.value = (1 - ph) * 0.9; });
   }
   for (const s of skulls) { s.icon.position.y = 30 + Math.sin(t * 1.3 + s.phase) * 1.5; }
+  if (target.visible) { const ph = (t * 0.7) % 1, rs = 6 + ph * 22; target.userData.ring.scale.set(rs, 1, rs); target.userData.ring.material.uniforms.uA.value = 1 - ph; }
   for (const s of signs) s.material.opacity = (s.userData.flick && Math.sin(t * 13 + s.userData.ph) * Math.sin(t * 3.1) > 0.55 ? 0.15 : 1) * (0.35 + 0.65 * n);
 
   if (zMesh.visible) updateZombies(dt);
   if (heli.visible) updateHeli(t);
 
   updateFlight(now);
-  updateCam(dt);
+  updateCam(real);
   window.__sky.position.copy(camera.position);
   needle.style.transform = `rotate(${cam.theta}rad)`;
 
-  updateTeam(dt);
-  renderer.render(scene, camera);
-  if (now - lastLabel > 30) { updateLabels(); lastLabel = now; }
-  requestAnimationFrame(frame);
+  updateTeam(real);
+  if (n > 0.05) { bloom.strength = 0.6 * n; composer.render(real); } else renderer.render(scene, camera);
+  if (now - lastLabel > 30 || !active) { updateLabels(); lastLabel = now; }
 }
-manager.onLoad = () => { $('#loader').classList.add('done'); if (!hintSeen) { showHint(); setTimeout(hideHint, 9000); } };
+manager.onLoad = () => { $('#loader').classList.add('done'); kick(1500); if (!hintSeen) { showHint(); setTimeout(hideHint, 9000); } };
+['pointerdown', 'pointermove', 'wheel', 'keydown'].forEach((ev) => window.addEventListener(ev, () => kick(), { passive: true, capture: true }));
+{
+  let s = null; try { s = localStorage.getItem('pv-saver'); } catch (e) { /* sin almacenamiento */ }
+  const v = s == null ? COARSE : s === '1';
+  $('#ly-saver').checked = v; setSaver(v);
+}
 requestAnimationFrame(frame);
-window.__pv = { camera, cam, flyTo, overview, U, scene };
+window.__pv = { camera, cam, flyTo, overview, U, scene, power, busy, bloom };
 
 // ================================================================ MODO EQUIPO: GPS en directo + walkie-talkie + avisos
 // Transporte: MQTT sobre WebSocket (servidores públicos, en paralelo y con deduplicación).
@@ -2038,6 +2147,9 @@ function haversine(a, b) {
 }
 const fmtDist = (m) => m < 1000 ? `${Math.round(m)} m` : `${(m / 1000).toFixed(1).replace('.', ',')} km`;
 const ago = (ms) => { const s = Math.max(0, Math.round(ms / 1000)); return s < 10 ? 'ahora' : s < 60 ? `hace ${s} s` : s < 3600 ? `hace ${Math.round(s / 60)} min` : `hace ${Math.round(s / 3600)} h`; };
+const shortAgo = (ms) => { const s = Math.max(0, Math.round(ms / 1000)); return s < 60 ? `${s} s` : s < 3600 ? `${Math.round(s / 60)} min` : `${Math.round(s / 3600)} h`; };
+// sin señal: salió de la web (avisó al irse) o lleva más de un minuto callado
+const isStale = (m, now) => m !== team.meEntry && (m.bg || now - m.ts > 60000);
 const ALPH = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const newCode = () => Array.from(crypto.getRandomValues(new Uint8Array(10)), (b) => ALPH[b % ALPH.length]).join('');
 const hexOf = (buf) => Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, '0')).join('');
@@ -2115,7 +2227,8 @@ async function onTeamMessage(topic, payload) {
 // ---------- posición propia
 let lastPub = 0, lastPubPos = null;
 async function publishPresence(force = false) {
-  if (!team.on || !team.key) return;
+  // en segundo plano no se publica: el GPS está parado y la última posición se haría pasar por fresca
+  if (!team.on || !team.key || document.visibilityState === 'hidden') return;
   const now = Date.now(), p = team.myPos;
   if (!force && now - lastPub < 1500) return;
   if (!force && p && lastPubPos && haversine(p, lastPubPos) < 3 && now - lastPub < 10000) return;
@@ -2124,25 +2237,36 @@ async function publishPresence(force = false) {
   const msg = { k: 'p', id: team.me.id, name: team.me.name, col: team.me.col, ts: now,
     lat: p ? +p.lat.toFixed(6) : null, lon: p ? +p.lon.toFixed(6) : null, acc: p ? Math.round(p.acc) : null };
   if (publishAll('/p/' + team.me.id, await seal(msg), { qos: 0, retain: true })) team.tx++;
+  // ya cifrado para poder mandarlo al instante si la página pasa a segundo plano (no da tiempo a cifrar entonces)
+  team.bgSealed = await seal({ ...msg, ts: now + 1, bg: 1 });
 }
 setInterval(() => { if (team.on) publishPresence(false); }, 3000);
 function setGeoMsg(t) { const el = $('#tl-geo'); el.hidden = !t; el.textContent = t || ''; }
+function onGeo(pos) {
+  const c = pos.coords;
+  team.myPos = { lat: c.latitude, lon: c.longitude, acc: c.accuracy, ts: Date.now() };
+  setPerm('geo', 'granted');
+  const [x, z] = llToXZ(c.latitude, c.longitude);
+  setGeoMsg(inWide(x, z) ? (c.accuracy > 60 ? `Señal GPS débil (±${Math.round(c.accuracy)} m)` : null)
+    : `Estás a ${fmtDist(haversine(team.myPos, { lat: 41.6087, lon: -0.8872 }))} de Puerto Venecia: apareces cuando llegues.`);
+  placeMe(); publishPresence(); renderTeamList();
+}
+function onGeoErr(err) {
+  if (err.code === 1) { setPerm('geo', 'denied'); setGeoMsg('Ubicación bloqueada en este móvil.'); toast('Ubicación bloqueada · toca para arreglarlo', '#ff8a80', openPerm); }
+  else if (!team.myPos) setGeoMsg('Sin señal de ubicación todavía. Sal al exterior o espera unos segundos.');
+}
+// (re)arranca el seguimiento: al volver de segundo plano iPhone deja el watch muerto sin avisar
 function startGeo() {
   if (!window.isSecureContext || !('geolocation' in navigator)) { setGeoMsg('Este navegador no permite compartir la ubicación desde esta página.'); return; }
-  setGeoMsg('Buscando tu ubicación…');
-  team.geoWatch = navigator.geolocation.watchPosition((pos) => {
-    const c = pos.coords;
-    team.myPos = { lat: c.latitude, lon: c.longitude, acc: c.accuracy, ts: Date.now() };
-    setPerm('geo', 'granted');
-    const [x, z] = llToXZ(c.latitude, c.longitude);
-    setGeoMsg(inWide(x, z) ? (c.accuracy > 60 ? `Señal GPS débil (±${Math.round(c.accuracy)} m)` : null)
-      : `Estás a ${fmtDist(haversine(team.myPos, { lat: 41.6087, lon: -0.8872 }))} de Puerto Venecia: apareces cuando llegues.`);
-    placeMe(); publishPresence(); renderTeamList();
-  }, (err) => {
-    if (err.code === 1) { setPerm('geo', 'denied'); setGeoMsg('Ubicación bloqueada en este móvil.'); toast('Ubicación bloqueada · toca para arreglarlo', '#ff8a80', openPerm); }
-    else setGeoMsg('Sin señal de ubicación todavía. Sal al exterior o espera unos segundos.');
-  }, { enableHighAccuracy: true, maximumAge: 3000, timeout: 25000 });
+  if (team.geoWatch != null) navigator.geolocation.clearWatch(team.geoWatch);
+  team.geoStart = Date.now();
+  if (!team.myPos) setGeoMsg('Buscando tu ubicación…');
+  team.geoWatch = navigator.geolocation.watchPosition(onGeo, onGeoErr, { enableHighAccuracy: true, maximumAge: 3000, timeout: 25000 });
 }
+setInterval(() => {
+  if (!team.on || team.geoWatch == null || document.visibilityState !== 'visible' || perm.geo === 'denied') return;
+  if (Date.now() - Math.max(team.myPos?.ts || 0, team.geoStart || 0) > 30000) startGeo();
+}, 10000);
 // ---------- permisos
 const UA = navigator.userAgent;
 const isIOS = /iPad|iPhone|iPod/.test(UA) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -2194,8 +2318,41 @@ $('#perm-mic-btn').addEventListener('click', () => {
 });
 ['#btn-perm', '#tj-perm', '#tl-perm'].forEach((id) => $(id).addEventListener('click', openPerm));
 readPerms();
-async function requestWake() { try { if (navigator.wakeLock && document.visibilityState === 'visible') team.wake = await navigator.wakeLock.request('screen'); } catch (e) { /* opcional */ } }
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && team.on) { requestWake(); publishPresence(true); } });
+// pantalla siempre encendida mientras se está en el equipo: si el móvil se bloquea, el navegador corta el GPS
+async function requestWake() {
+  if (!navigator.wakeLock || document.visibilityState !== 'visible' || (team.wake && !team.wake.released)) return;
+  try {
+    team.wake = await navigator.wakeLock.request('screen');
+    team.wake.addEventListener('release', () => { if (team.on && document.visibilityState === 'visible') setTimeout(requestWake, 1000); });
+  } catch (e) {
+    // sin un toque del usuario no siempre lo concede: se reintenta en el siguiente
+    window.addEventListener('pointerdown', () => { if (team.on) requestWake(); }, { once: true, capture: true });
+  }
+}
+async function reconnectBrokers() {
+  const old = team.clients; team.clients = [];
+  old.forEach((c) => { try { c.end(true); } catch (e) { /* ya cerrado */ } });
+  await connectBrokers();
+  updateConnState();
+}
+// salir de la web: el resto ve «salió de la web» en vez de un punto congelado; volver: todo se rearranca
+let hiddenAt = 0;
+function onHide() {
+  if (!team.on) return;
+  hiddenAt = hiddenAt || Date.now();
+  if (team.bgSealed) publishAll('/p/' + team.me.id, team.bgSealed, { qos: 0, retain: true });
+}
+async function onShow() {
+  if (!team.on) return;
+  const away = hiddenAt ? Date.now() - hiddenAt : 0; hiddenAt = 0;
+  requestWake(); startGeo(); primeGeo();
+  if (away > 8000 || !team.clients.some((c) => c.connected)) await reconnectBrokers();
+  publishPresence(true);
+  if (away > 30000) toast(`Has estado ${away < 90000 ? Math.round(away / 1000) + ' s' : Math.round(away / 60000) + ' min'} fuera de la web y el equipo no veía dónde estabas. Ya vuelves a aparecer.`, '#ff9b3d');
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') onShow(); else onHide(); });
+window.addEventListener('pagehide', onHide);
+window.addEventListener('pageshow', (e) => { if (e.persisted) onShow(); });
 
 // ---------- avatares 3D de los miembros
 const memberGroup = new THREE.Group(); scene.add(memberGroup);
@@ -2216,7 +2373,7 @@ function makeAvatar(col, name, isMe) {
   const el = document.createElement('button');
   el.className = 'tag member' + (isMe ? ' me' : ''); el.type = 'button';
   el.style.setProperty('--c', col);
-  el.innerHTML = '<span class="ini"></span><span class="cell" hidden></span>';
+  el.innerHTML = '<span class="ini"></span><span class="cell" hidden></span><span class="age" hidden></span>';
   el.querySelector('.ini').textContent = initials(name);
   el.setAttribute('aria-label', isMe ? `${name} (tú)` : name);
   const pos = new THREE.Vector3();
@@ -2224,22 +2381,27 @@ function makeAvatar(col, name, isMe) {
   labelsEl.appendChild(el); labels.push(L);
   return { g, L };
 }
-function dropAvatar(o) { if (!o) return; memberGroup.remove(o.g); o.g.traverse((m) => { m.geometry?.dispose(); m.material?.dispose(); }); o.L.el.remove(); const i = labels.indexOf(o.L); if (i >= 0) labels.splice(i, 1); }
+function dropAvatar(o) { if (!o) return; kick(); memberGroup.remove(o.g); o.g.traverse((m) => { m.geometry?.dispose(); m.material?.dispose(); }); o.L.el.remove(); const i = labels.indexOf(o.L); if (i >= 0) labels.splice(i, 1); }
 function placeEntry(m, isMe) {
   if (m.lat == null || m.lon == null) { if (m.av) m.av.L.hide = true; if (m.av) m.av.g.visible = false; return; }
   const [x, z] = llToXZ(m.lat, m.lon);
+  // el GPS da lecturas cada segundo aunque estés quieto: solo se redibuja si alguien se mueve de verdad
+  const fresh = !m.av, wasIn = m.inside, moved = fresh || Math.hypot(x - m.tx, z - m.tz) > 1;
   m.inside = inWide(x, z); m.tx = x; m.tz = z;
   if (!m.av) { m.av = makeAvatar(m.col, m.name, isMe); m.x = x; m.z = z; m.av.L.el.addEventListener('click', () => flyTo(new THREE.Vector3(m.x, 0, m.z), 160, 52)); }
+  if (power.saver) { m.x = x; m.z = z; }   // con ahorro, sin animación: salta al sitio y basta un fotograma
   m.av.g.visible = m.inside; m.av.L.hide = !m.inside;
   m.av.g.userData.acc.scale.set(Math.min(m.acc || 10, 80), 1, Math.min(m.acc || 10, 80));
   const c = m.inside ? cellName(...worldToGrid(x, z)) : null;
   m.av.L.el.querySelector('.cell').textContent = c || '—';
+  if (moved || wasIn !== m.inside) kick(power.saver ? 80 : 1200);
 }
 function placeMe() {
   if (!team.on || !team.myPos) return;
   if (!team.meEntry) team.meEntry = { id: team.me.id, name: team.me.name, col: team.me.col };
   Object.assign(team.meEntry, { lat: team.myPos.lat, lon: team.myPos.lon, acc: team.myPos.acc, ts: Date.now() });
   placeEntry(team.meEntry, true);
+  if (target.visible) cellInfo();
 }
 function onPresence(msg) {
   let m = team.members.get(msg.id);
@@ -2248,7 +2410,7 @@ function onPresence(msg) {
   if (!m) { m = { id: msg.id }; team.members.set(msg.id, m); }
   const name = cleanName(msg.name), col = cleanCol(msg.col);
   if (m.av && (m.name !== name || m.col !== col)) { dropAvatar(m.av); m.av = null; }
-  Object.assign(m, { name, col, ts: Math.min(+msg.ts || Date.now(), Date.now()),
+  Object.assign(m, { name, col, ts: Math.min(+msg.ts || Date.now(), Date.now()), bg: msg.bg === 1,
     lat: Number.isFinite(msg.lat) ? msg.lat : null, lon: Number.isFinite(msg.lon) ? msg.lon : null, acc: Number.isFinite(msg.acc) ? msg.acc : null });
   placeEntry(m, false);
   if (isNew && m.ts > team.joinedAt - 2000) toast(`${name} se ha unido al equipo`, col);
@@ -2268,15 +2430,17 @@ function updateTeam(dt) {
     ud.body.scale.setScalar(s); ud.beam.scale.set(s, 1, s);
     const ph = (t * 0.5 + (m === team.meEntry ? 0 : 0.37)) % 1;
     ud.ring.scale.set(4 * s + ph * 10 * s, 1, 4 * s + ph * 10 * s); ud.ring.material.uniforms.uA.value = (1 - ph) * 0.9;
-    const stale = m !== team.meEntry && now - m.ts > 60000;
+    const stale = isStale(m, now);
     ud.beam.visible = !stale;
     m.av.L.el.classList.toggle('stale', stale);
+    const age = stale ? shortAgo(now - m.ts) : '';
+    if (m.ageTxt !== age) { m.ageTxt = age; const a = m.av.L.el.querySelector('.age'); a.hidden = !age; a.textContent = age; }
     m.av.L.pos.set(m.x, 6.6 * s + 2, m.z);
   }
   if (team.follow && team.meEntry?.inside && !ptrs.size && !flight) {
     cam.target.x += (team.meEntry.x - cam.target.x) * Math.min(1, dt * 2); cam.target.z += (team.meEntry.z - cam.target.z) * Math.min(1, dt * 2); applyCam();
   }
-  for (const [id, p] of pings) if (now - p.ts > 5 * 60000) { dropPing(id); }
+  for (const [id, p] of pings) if (now - p.ts > p.ttl) { dropPing(id); }
   for (const p of pings.values()) { const ph = (t * 0.8) % 1; p.ring.scale.set(5 + ph * 22, 1, 5 + ph * 22); p.ring.material.uniforms.uA.value = 1 - ph; }
 }
 
@@ -2301,7 +2465,7 @@ function memberInfo(m, now) {
   const cell = m.inside ? cellName(...worldToGrid(m.tx, m.tz)) : null;
   const parts = [m.lat == null ? 'Sin ubicación' : (cell ? `Celda ${cell}` : 'Fuera del mapa')];
   if (d != null) parts.push(fmtDist(d));
-  parts.push(now - m.ts > 60000 ? `última señal ${ago(now - m.ts)}` : ago(now - m.ts));
+  parts.push(m.bg ? `salió de la web ${ago(now - m.ts)}` : now - m.ts > 60000 ? `última señal ${ago(now - m.ts)}` : ago(now - m.ts));
   return parts.join(' · ');
 }
 function renderTeamList() {
@@ -2315,9 +2479,9 @@ function renderTeamList() {
     const m = all.find((x) => x.name === r.name);
     if (!m) { teamRow(ul, r.name, r.col, 'Aún no se ha conectado', true); continue; }
     shown.add(m.id);
-    teamRow(ul, r.name, r.col, memberInfo(m, now), now - m.ts > 60000, () => { if (m.inside) { flyTo(new THREE.Vector3(m.x, 0, m.z), 160, 52); team.follow = false; syncFollow(); } });
+    teamRow(ul, r.name, r.col, memberInfo(m, now), isStale(m, now), () => { if (m.inside) { flyTo(new THREE.Vector3(m.x, 0, m.z), 160, 52); team.follow = false; syncFollow(); } });
   }
-  for (const m of all) if (!shown.has(m.id)) teamRow(ul, m.name, m.col, memberInfo(m, now), now - m.ts > 60000, () => m.inside && flyTo(new THREE.Vector3(m.x, 0, m.z), 160, 52));
+  for (const m of all) if (!shown.has(m.id)) teamRow(ul, m.name, m.col, memberInfo(m, now), isStale(m, now), () => m.inside && flyTo(new THREE.Vector3(m.x, 0, m.z), 160, 52));
 }
 setInterval(renderTeamList, 2000);
 function centerOnMe() {
@@ -2326,6 +2490,24 @@ function centerOnMe() {
 }
 function syncFollow() { $('#tl-follow').setAttribute('aria-pressed', String(team.follow)); }
 $('#tl-me').addEventListener('click', centerOnMe);
+// modo bolsillo: deja de dibujar el 3D y tapa todo de negro; para salir hay que mantener pulsado 1 s
+const pocketEl = $('#pocket');
+function setPocket(v) {
+  power.pocket = v; pocketEl.hidden = !v; document.body.classList.toggle('pocket', v);
+  if (v) { openTeam(false); requestWake(); } else kick(1500);
+}
+$('#tl-pocket').addEventListener('click', () => setPocket(true));
+{
+  const hold = $('#pocket-hold'); let t0 = 0, raf = 0;
+  const stop = () => { cancelAnimationFrame(raf); raf = 0; hold.style.setProperty('--p', 0); };
+  const step = () => {
+    const p = Math.min(1, (performance.now() - t0) / 1000); hold.style.setProperty('--p', p);
+    if (p >= 1) { stop(); setPocket(false); } else raf = requestAnimationFrame(step);
+  };
+  hold.addEventListener('pointerdown', (e) => { e.preventDefault(); try { hold.setPointerCapture(e.pointerId); } catch (err) { /* opcional */ } t0 = performance.now(); raf = requestAnimationFrame(step); });
+  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach((ev) => hold.addEventListener(ev, stop));
+  hold.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setPocket(false); } });
+}
 $('#tl-follow').addEventListener('click', () => { team.follow = !team.follow; syncFollow(); if (team.follow) centerOnMe(); });
 const muteBtn = $('#btn-mute');
 function setMuted(v) { team.muted = v; muteBtn.setAttribute('aria-pressed', String(v)); muteBtn.setAttribute('aria-label', v ? 'Activar el sonido del walkie' : 'Silenciar el walkie'); muteBtn.title = v ? 'Walkie silenciado: toca para oírlo' : 'Silenciar el walkie'; store.set('pv-mute', v ? '1' : '0'); }
@@ -2361,13 +2543,15 @@ async function pickRoster(r) {
 async function joinTeam(name, col, code, gesture) {
   team.me = { id: await nameId(name), name, col }; team.code = code;
   store.set('pv-name', name); store.set('pv-col', col); store.set('pv-team', code);
-  if (gesture) { unlockAudio(); requestWake(); }
+  if (gesture) unlockAudio();
+  requestWake();
   const { key, topic } = await deriveTeam(code);
   team.key = key; team.topic = topic; team.on = true; team.joinedAt = Date.now();
   history.replaceState(null, '', '#equipo=' + code);
   $('#team-join').hidden = true; $('#team-live').hidden = false;
   $('#tl-code').textContent = code.replace(/(.{5})(.+)/, '$1·$2');
   $('#radio').hidden = false; document.body.classList.add('in-team');
+  if (target.visible) setActs(true);
   updateConnState();
   startGeo();
   await connectBrokers();
@@ -2379,13 +2563,13 @@ async function leaveTeam() {
   try { const bye = await seal({ k: 'x', id: team.me.id, ts: Date.now() }); publishAll('/r', bye, { qos: 0 }); publishAll('/p/' + team.me.id, '', { qos: 0, retain: true }); } catch (e) { /* sin conexión */ }
   setTimeout(() => { team.clients.forEach((c) => c.end(true)); team.clients = []; }, 400);
   if (team.geoWatch != null) navigator.geolocation.clearWatch(team.geoWatch);
-  team.geoWatch = null; team.on = false; team.myPos = null; team.follow = false; syncFollow();
+  team.geoWatch = null; team.on = false; team.myPos = null; team.follow = false; team.bgSealed = null; syncFollow(); setPocket(false);
   for (const m of team.members.values()) dropAvatar(m.av);
   team.members.clear(); if (team.meEntry) { dropAvatar(team.meEntry.av); team.meEntry = null; }
   for (const id of [...pings.keys()]) dropPing(id);
   try { team.wake?.release(); } catch (e) { /* opcional */ }
   store.del('pv-team'); history.replaceState(null, '', location.pathname + location.search);
-  $('#team-join').hidden = false; $('#team-live').hidden = true; $('#radio').hidden = true; $('#ping-btn').hidden = true;
+  $('#team-join').hidden = false; $('#team-live').hidden = true; $('#radio').hidden = true; setActs(false);
   document.body.classList.remove('in-team'); teamBtn.classList.remove('live');
   $('#tj-code').value = ''; $('#tj-msg').textContent = '';
 }
@@ -2535,33 +2719,42 @@ function needAudioUnlock() {
   $('#toasts').appendChild(b);
 }
 
-// ---------- avisos sobre el mapa
+// ---------- avisos sobre el mapa: voy allí, peligro, reunión aquí (sin tipo = aviso de la versión anterior)
 const pings = new Map();
 let lastTapWorld = null;
-const pingBtn = $('#ping-btn');
-function onCellTapped(p) { lastTapWorld = { x: p.x, z: p.z }; pingBtn.hidden = !team.on; }
-pingBtn.addEventListener('click', async () => {
-  if (!team.on || !lastTapWorld) return;
+const PING = {
+  ir: { tag: 'Voy', ttl: 5 * 60000, sent: (c) => `Enviado: vas a ${c}`, got: (n, c) => `${n} va a ${c}` },
+  peligro: { tag: 'Peligro', col: '#e3342a', ttl: 5 * 60000, sent: (c) => `Enviado: peligro en ${c}`, got: (n, c) => `${n}: ¡peligro en ${c}!` },
+  reunion: { tag: 'Reunión', col: '#ffd21f', ttl: 15 * 60000, sent: (c) => `Enviado: reunión en ${c}`, got: (n, c) => `${n}: nos reunimos en ${c}` },
+  aviso: { tag: 'Aviso', ttl: 5 * 60000, sent: (c) => `Aviso enviado: ${c}`, got: (n, c) => `${n} avisa en ${c}` },
+};
+const pingType = (t) => (t === 'ir' || t === 'peligro' || t === 'reunion' ? t : 'aviso');
+function onCellTapped(p) { lastTapWorld = { x: p.x, z: p.z }; }
+$('#hud-acts').addEventListener('click', async (e) => {
+  const b = e.target.closest('button[data-t]'); if (!b || !team.on || !lastTapWorld) return;
   const [u, v] = worldToGrid(lastTapWorld.x, lastTapWorld.z);
-  const msg = { k: 'k', id: team.me.id, name: team.me.name, col: team.me.col, pid: Math.random().toString(36).slice(2, 10),
+  const msg = { k: 'k', t: pingType(b.dataset.t), id: team.me.id, name: team.me.name, col: team.me.col, pid: Math.random().toString(36).slice(2, 10),
     x: +lastTapWorld.x.toFixed(1), z: +lastTapWorld.z.toFixed(1), cell: cellName(u, v), ts: Date.now() };
   publishAll('/k', await seal(msg), { qos: 1 });
-  showPing(msg); toast(`Aviso enviado: ${msg.cell}`, team.me.col);
+  showPing(msg); toast(PING[msg.t].sent(msg.cell || 'el mapa'), team.me.col);
 });
 function showPing(m) {
   const x = +m.x, z = +m.z; if (!Number.isFinite(x) || !Number.isFinite(z) || Math.abs(x) > 3000 || Math.abs(z) > 3000) return;
-  const col = cleanCol(m.col), name = cleanName(m.name);
+  const col = cleanCol(m.col), name = cleanName(m.name), t = pingType(m.t), P = PING[t];
+  // un «voy allí» por persona y un único punto de reunión: el nuevo sustituye al anterior
+  for (const [id, p] of pings) if ((t === 'ir' && p.t === 'ir' && p.who === m.id) || (t === 'reunion' && p.t === 'reunion')) dropPing(id);
   const g = new THREE.Group(); g.position.set(x, 0, z);
-  const beam = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 3.5, 200, 16, 1, true).translate(0, 100, 0), beamMat(col)); beam.renderOrder = 14;
-  const ring = new THREE.Mesh(new THREE.RingGeometry(0.8, 1, 48).rotateX(-Math.PI / 2), ringMat(col)); ring.position.y = 1.1; ring.renderOrder = 7;
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 3.5, 200, 16, 1, true).translate(0, 100, 0), beamMat(P.col || col)); beam.renderOrder = 14;
+  const ring = new THREE.Mesh(new THREE.RingGeometry(0.8, 1, 48).rotateX(-Math.PI / 2), ringMat(P.col || col)); ring.position.y = 1.1; ring.renderOrder = 7;
   g.add(beam, ring); scene.add(g);
-  const el = document.createElement('button'); el.type = 'button'; el.className = 'tag ping';
-  el.innerHTML = `<i style="background:${col}"></i><span class="nm">Aviso</span><span class="cell"></span>`;
-  el.querySelector('i').textContent = initials(name); el.querySelector('.cell').textContent = m.cell || '—';
+  const el = document.createElement('button'); el.type = 'button'; el.className = `tag ping ${t}`;
+  el.innerHTML = `<i style="background:${col}"></i><span class="nm"></span><span class="cell"></span>`;
+  el.querySelector('i').textContent = initials(name); el.querySelector('.nm').textContent = P.tag; el.querySelector('.cell').textContent = m.cell || '—';
   el.addEventListener('click', () => { flyTo(new THREE.Vector3(x, 0, z), 170, 52); toast(`Quitar el aviso de ${m.cell || 'aquí'}`, '#ff8a80', () => removePing(m.pid, true)); });
   const L = { el, pos: new THREE.Vector3(x, 30, z), kind: 'member', always: true };
   labelsEl.appendChild(el); labels.push(L);
-  pings.set(m.pid, { g, ring, L, ts: Date.now() });
+  pings.set(m.pid, { g, ring, L, ts: Date.now(), ttl: P.ttl, t, who: m.id });
+  kick(1500);
 }
 async function removePing(pid, broadcast) {
   if (!pings.has(pid)) return;
@@ -2571,13 +2764,17 @@ async function removePing(pid, broadcast) {
     toast('Aviso quitado para todo el equipo');
   }
 }
-function dropPing(id) { const p = pings.get(id); if (!p) return; scene.remove(p.g); p.L.el.remove(); const i = labels.indexOf(p.L); if (i >= 0) labels.splice(i, 1); pings.delete(id); }
+function dropPing(id) { const p = pings.get(id); if (!p) return; kick(); scene.remove(p.g); p.L.el.remove(); const i = labels.indexOf(p.L); if (i >= 0) labels.splice(i, 1); pings.delete(id); }
 function onPing(m) {
   showPing(m);
-  const name = cleanName(m.name);
-  toast(`${name} avisa en ${m.cell || 'el mapa'}`, cleanCol(m.col), () => flyTo(new THREE.Vector3(+m.x, 0, +m.z), 170, 52));
-  try { navigator.vibrate?.([90, 60, 90]); } catch (e) { /* opcional */ }
-  if (!team.muted && actx?.state === 'running') { const c = actx; tone(1320, 0.09, c.currentTime + 0.02, 0.09); tone(1760, 0.12, c.currentTime + 0.14, 0.09); }
+  const t = pingType(m.t), name = cleanName(m.name);
+  toast(PING[t].got(name, m.cell || 'el mapa'), cleanCol(m.col), () => flyTo(new THREE.Vector3(+m.x, 0, +m.z), 170, 52));
+  try { navigator.vibrate?.(t === 'peligro' ? [200, 80, 200, 80, 200] : [90, 60, 90]); } catch (e) { /* opcional */ }
+  if (!team.muted && actx?.state === 'running') {
+    const c = actx, n = c.currentTime;
+    if (t === 'peligro') { tone(880, 0.12, n + 0.02, 0.1); tone(660, 0.12, n + 0.18, 0.1); tone(880, 0.12, n + 0.34, 0.1); }
+    else { tone(1320, 0.09, n + 0.02, 0.09); tone(1760, 0.12, n + 0.14, 0.09); }
+  }
 }
 
 // ---------- avisos en pantalla
