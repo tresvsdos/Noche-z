@@ -463,8 +463,8 @@ body.intro .tabbar { transform: translateY(110%); }
     <form id="team-join" autocomplete="off">
       <p class="who">¿Quién eres? Toca tu nombre para entrar</p>
       <div class="roster" id="tj-roster" role="group" aria-label="Elige quién eres"></div>
-      <label class="f">Código de equipo <input type="text" id="tj-code" maxlength="16" placeholder="Vacío = crear equipo nuevo"></label>
-      <p class="fine">Tu ubicación solo la ve quien tenga el enlace del equipo, y solo mientras tengas esta página abierta. Todo viaja cifrado de extremo a extremo.</p>
+      <label class="f">Código de equipo <input type="text" id="tj-code" maxlength="120" placeholder="Vacío = crear equipo nuevo"></label>
+      <p class="fine" id="tj-fine">Tu ubicación solo la ve quien tenga el enlace del equipo, y solo mientras tengas esta página abierta. Todo viaja cifrado de extremo a extremo.</p>
       <p class="msg" id="tj-msg"></p>
       <button type="button" class="linkbtn" id="tj-perm">¿Problemas con los permisos?</button>
     </form>
@@ -486,8 +486,14 @@ body.intro .tabbar { transform: translateY(110%); }
     <div class="team-head"><h2>Permisos</h2><button type="button" class="x" id="perm-close" aria-label="Cerrar">×</button></div>
     <div class="prow"><span>Ubicación</span><b id="perm-geo" class="st">—</b><button type="button" id="perm-geo-btn">Pedir</button></div>
     <div class="prow"><span>Micrófono</span><b id="perm-mic" class="st">—</b><button type="button" id="perm-mic-btn">Probar</button></div>
+    <div class="prow" id="perm-bg-row" hidden><span>Segundo plano</span><b id="perm-bg" class="st">—</b><button type="button" id="perm-bg-btn">Permitir</button></div>
     <p class="fine warnbox" id="perm-inapp" hidden>Estás abriendo el enlace dentro de otra app. Ábrelo en Safari o Chrome: toca los tres puntos o el botón de compartir y elige «Abrir en el navegador».</p>
     <p class="fine">Si pone «Bloqueado», el móvil no volverá a preguntar: hay que cambiarlo en los ajustes.</p>
+    <details class="mdet" id="perm-app" hidden><summary>App Survival Z</summary><ol>
+      <li>En los ajustes de la app: <b>Ubicación</b> en <b>Siempre</b> o <b>Al usar la app</b>, con <b>Ubicación exacta</b>, y <b>Micrófono</b> activado.</li>
+      <li>Android: en <b>Batería</b>, <b>Sin restricciones</b>; si no, con la pantalla apagada deja de enviar.</li>
+      <li>Si cierras la app deslizándola, el equipo deja de verte. Bloquear el móvil o cambiar de app no la para.</li>
+    </ol><button type="button" class="primary" id="perm-settings">Abrir ajustes de la app</button></details>
     <details class="mdet" id="perm-ios"><summary>iPhone · Safari</summary><ol>
       <li><b>Ajustes → Privacidad y seguridad → Localización</b>: activada.</li>
       <li>En esa pantalla baja a <b>Sitios web de Safari</b> → <b>Al usar la app</b> y activa <b>Ubicación exacta</b>.</li>
@@ -2184,6 +2190,13 @@ window.__pv = { camera, cam, flyTo, overview, U, scene, power, busy, bloom };
 // Todo va cifrado con AES-GCM; la clave sale del código de equipo, que viaja en el #fragmento del enlace y nunca llega al servidor.
 const MODE = 'standalone';
 const TEAM_URL = '';
+// App nativa (app/, Capacitor): la misma web dentro de una app que sigue mandando la ubicación con el móvil bloqueado.
+// La web publicada no lleva @capacitor/core: se habla con los plugins por el puente que inyecta la app.
+const CAP = window.Capacitor;
+const NATIVE = !!(CAP?.isNativePlatform?.() && CAP.nativePromise && CAP.nativeCallback);
+const ANDROID_APP = NATIVE && CAP.getPlatform() === 'android';
+const nat = (plugin, method, opts = {}) => CAP.nativePromise(plugin, method, opts);
+if (NATIVE) document.documentElement.classList.add('native');
 const ROSTER = [
   { name: 'Íñigo', col: '#00e5ff' }, { name: 'Dani', col: '#ff9f1c' }, { name: 'Alejandro', col: '#c77dff' },
   { name: 'Migue', col: '#7bf1a8' }, { name: 'JM', col: '#ff4d9d' },
@@ -2212,7 +2225,8 @@ const fmtDist = (m) => m < 1000 ? `${Math.round(m)} m` : `${(m / 1000).toFixed(1
 const ago = (ms) => { const s = Math.max(0, Math.round(ms / 1000)); return s < 10 ? 'ahora' : s < 60 ? `hace ${s} s` : s < 3600 ? `hace ${Math.round(s / 60)} min` : `hace ${Math.round(s / 3600)} h`; };
 const shortAgo = (ms) => { const s = Math.max(0, Math.round(ms / 1000)); return s < 60 ? `${s} s` : s < 3600 ? `${Math.round(s / 60)} min` : `${Math.round(s / 3600)} h`; };
 // sin señal: salió de la web (avisó al irse) o lleva más de un minuto callado
-const isStale = (m, now) => m !== team.meEntry && (m.bg || now - m.ts > 60000);
+// (desde la app con el móvil bloqueado solo se manda al moverse: se le dan 5 min)
+const isStale = (m, now) => m !== team.meEntry && (m.bg || now - m.ts > (m.nb ? 300000 : 60000));
 const ALPH = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const newCode = () => Array.from(crypto.getRandomValues(new Uint8Array(10)), (b) => ALPH[b % ALPH.length]).join('');
 const hexOf = (buf) => Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, '0')).join('');
@@ -2237,6 +2251,23 @@ async function seal(obj) {
   const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, team.key, tenc.encode(JSON.stringify(obj))));
   const out = new Uint8Array(12 + ct.length); out.set(iv); out.set(ct, 12);
   return b64e(out);
+}
+// Solo en la app: a los 5 min en segundo plano Android congela las tareas de la página. El aviso del GPS sigue entrando,
+// pero lo asíncrono (WebCrypto) ya no termina. Para eso, cifrado síncrono (misma clave y formato que seal) con @noble/ciphers.
+let sealSync = null;
+async function prepSyncSeal(code) {
+  try {
+    const { gcm } = await import('https://cdn.jsdelivr.net/npm/@noble/ciphers@1.3.0/esm/aes.js');
+    const base = await crypto.subtle.importKey('raw', tenc.encode(code), 'PBKDF2', false, ['deriveBits']);
+    const raw = new Uint8Array(await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: tenc.encode('puerto-venecia-noche-z/v1'), iterations: 120000, hash: 'SHA-256' }, base, 256));
+    if (team.code !== code) return;
+    sealSync = (obj) => {
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const ct = gcm(raw, iv).encrypt(tenc.encode(JSON.stringify(obj)));
+      const out = new Uint8Array(12 + ct.length); out.set(iv); out.set(ct, 12);
+      return b64e(out);
+    };
+  } catch (e) { sealSync = null; }
 }
 async function unseal(str) {
   const u8 = b64d(str);
@@ -2265,6 +2296,15 @@ async function connectBrokers() {
   });
 }
 function publishAll(sub, data, opts) { let n = 0; for (const c of team.clients) if (c.connected) { c.publish(team.topic + sub, data, opts); n++; } return n; }
+// solo en la app: publicar (retenido) por HTTP nativo en shiftr, que lo reparte a los suscritos por MQTT.
+// Con la app en segundo plano Android frena la red de la web y el WebSocket se duerme; esto no.
+async function httpPublish(sub, data) {
+  try {
+    const r = await nat('CapacitorHttp', 'request', { method: 'POST', url: `https://public.cloud.shiftr.io/broker/${team.topic}${sub}?retained=true`,
+      headers: { Authorization: 'Basic ' + btoa('public:public'), 'Content-Type': 'text/plain' }, data, connectTimeout: 8000, readTimeout: 8000 });
+    return r?.status === 200 ? 1 : 0;
+  } catch (e) { return 0; }
+}
 function updateConnState() {
   const n = team.clients.filter((c) => c.connected).length;
   const el = $('#tl-status'); if (!el) return;
@@ -2291,18 +2331,27 @@ async function onTeamMessage(topic, payload) {
 // ---------- posición propia
 let lastPub = 0, lastPubPos = null;
 async function publishPresence(force = false) {
-  // en segundo plano no se publica: el GPS está parado y la última posición se haría pasar por fresca
-  if (!team.on || !team.key || document.visibilityState === 'hidden') return;
+  // en la web, en segundo plano no se publica: el GPS está parado y la última posición se haría pasar por fresca.
+  // En la app el GPS sigue vivo y se sigue mandando.
+  const hidden = document.visibilityState === 'hidden';
+  if (!team.on || !team.key || (hidden && !NATIVE)) return;
   const now = Date.now(), p = team.myPos;
-  if (!force && now - lastPub < 1500) return;
-  if (!force && p && lastPubPos && haversine(p, lastPubPos) < 3 && now - lastPub < 10000) return;
-  if (!force && !p && now - lastPub < 10000) return;
+  const gap = hidden ? 5000 : 1500, beat = hidden ? 30000 : 10000;   // bloqueado, cada envío es una petición HTTP: más espaciados
+  if (!force && now - lastPub < gap) return;
+  if (!force && p && lastPubPos && haversine(p, lastPubPos) < 3 && now - lastPub < beat) return;
+  if (!force && !p && now - lastPub < beat) return;
   lastPub = now; lastPubPos = p ? { ...p } : null;
   const msg = { k: 'p', id: team.me.id, name: team.me.name, col: team.me.col, ts: now,
     lat: p ? +p.lat.toFixed(6) : null, lon: p ? +p.lon.toFixed(6) : null, acc: p ? Math.round(p.acc) : null };
-  if (publishAll('/p/' + team.me.id, await seal(msg), { qos: 0, retain: true })) team.tx++;
+  if (NATIVE) msg.nb = 1;
+  // app oculta: todo síncrono hasta el puente nativo (la petición sale aunque Android tenga la página congelada)
+  if (NATIVE && hidden && sealSync) { httpPublish('/p/' + team.me.id, sealSync(msg)); team.tx++; return; }
+  const sealed = await seal(msg);
+  let n = publishAll('/p/' + team.me.id, sealed, { qos: 0, retain: true });
+  if (NATIVE && (hidden || !n)) n += await httpPublish('/p/' + team.me.id, sealed);
+  if (n) team.tx++;
   // ya cifrado para poder mandarlo al instante si la página pasa a segundo plano (no da tiempo a cifrar entonces)
-  team.bgSealed = await seal({ ...msg, ts: now + 1, bg: 1 });
+  if (!NATIVE) team.bgSealed = await seal({ ...msg, ts: now + 1, bg: 1 });
 }
 setInterval(() => { if (team.on) publishPresence(false); }, 3000);
 function setGeoMsg(t) { const el = $('#tl-geo'); el.hidden = !t; el.textContent = t || ''; }
@@ -2314,6 +2363,7 @@ function onGeo(pos) {
   setGeoMsg(inWide(x, z) ? (c.accuracy > 60 ? `Señal GPS débil (±${Math.round(c.accuracy)} m)` : null)
     : `Estás a ${fmtDist(haversine(team.myPos, { lat: 41.6087, lon: -0.8872 }))} de Puerto Venecia: apareces cuando llegues.`);
   placeMe(); publishPresence(); renderTeamList();
+  if (ANDROID_APP && team.on && !team.bgAsked) { team.bgAsked = true; askAndroidBackground(false); }
 }
 function onGeoErr(err) {
   if (err.code === 1) { setPerm('geo', 'denied'); setGeoMsg('Ubicación bloqueada en este móvil.'); toast('Ubicación bloqueada · toca para arreglarlo', '#ff8a80', openPerm); }
@@ -2321,20 +2371,56 @@ function onGeoErr(err) {
 }
 // (re)arranca el seguimiento: al volver de segundo plano iPhone deja el watch muerto sin avisar
 function startGeo() {
+  if (NATIVE) { startNativeGeo(); return; }
   if (!window.isSecureContext || !('geolocation' in navigator)) { setGeoMsg('Este navegador no permite compartir la ubicación desde esta página.'); return; }
   if (team.geoWatch != null) navigator.geolocation.clearWatch(team.geoWatch);
   team.geoStart = Date.now();
   if (!team.myPos) setGeoMsg('Buscando tu ubicación…');
   team.geoWatch = navigator.geolocation.watchPosition(onGeo, onGeoErr, { enableHighAccuracy: true, maximumAge: 3000, timeout: 25000 });
 }
+// en la app el GPS es nativo y sigue con el móvil bloqueado (Android lo enseña con una notificación fija; iPhone, con la flecha azul)
+function startNativeGeo() {
+  if (team.geoWatch != null) return;   // el seguimiento nativo no muere al salir de la app: no se rearranca
+  team.geoStart = Date.now();
+  if (!team.myPos) setGeoMsg('Buscando tu ubicación…');
+  team.geoWatch = CAP.nativeCallback('BackgroundGeolocation', 'addWatcher', {
+    backgroundTitle: 'Survival Z · compartiendo tu ubicación',
+    backgroundMessage: 'Tu equipo ve dónde estás. Toca para abrir el mapa.',
+    requestPermissions: true, stale: false, distanceFilter: 3,
+  }, (loc, err) => {
+    if (err) { if (err.code === 'NOT_AUTHORIZED') onGeoErr({ code: 1 }); else onGeoErr({ code: 2 }); return; }
+    if (loc && Number.isFinite(loc.latitude)) onGeo({ coords: { latitude: loc.latitude, longitude: loc.longitude, accuracy: loc.accuracy } });
+  });
+}
+function stopGeo() {
+  if (team.geoWatch == null) return;
+  if (NATIVE) nat('BackgroundGeolocation', 'removeWatcher', { id: team.geoWatch }).catch(() => { /* ya parado */ });
+  else navigator.geolocation.clearWatch(team.geoWatch);
+  team.geoWatch = null;
+}
 setInterval(() => {
-  if (!team.on || team.geoWatch == null || document.visibilityState !== 'visible' || perm.geo === 'denied') return;
+  // (en la app no hace falta: quieto, el GPS nativo calla a propósito y sigue vivo)
+  if (NATIVE || !team.on || team.geoWatch == null || document.visibilityState !== 'visible' || perm.geo === 'denied') return;
   if (Date.now() - Math.max(team.myPos?.ts || 0, team.geoStart || 0) > 30000) startGeo();
 }, 10000);
+// Android corta la red de las apps dormidas y, desde la 13, no enseña la notificación del GPS sin permiso
+async function askAndroidBackground(manual) {
+  try {
+    if (!manual && store.get('pv-bgask') === '1') return;
+    store.set('pv-bgask', '1');
+    await nat('SzNative', 'askNotifications');
+    const s = await nat('SzNative', 'status');
+    if (!s.battery) await nat('SzNative', 'askBattery');
+  } catch (e) { /* app antigua sin el plugin */ }
+}
+async function readBgPerm() {
+  if (!ANDROID_APP) return;
+  try { const s = await nat('SzNative', 'status'); const el = $('#perm-bg'); el.textContent = s.battery ? 'Sin restricciones' : 'Restringido'; el.className = 'st' + (s.battery ? ' ok' : ' bad'); } catch (e) { /* sin plugin */ }
+}
 // ---------- permisos
 const UA = navigator.userAgent;
 const isIOS = /iPad|iPhone|iPod/.test(UA) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-const isInApp = /FBAN|FBAV|Instagram|WhatsApp|Line\/|Twitter|TikTok|Snapchat|; wv\)/i.test(UA);
+const isInApp = !NATIVE && /FBAN|FBAV|Instagram|WhatsApp|Line\/|Twitter|TikTok|Snapchat|; wv\)/i.test(UA);
 const perm = { geo: 'prompt', mic: 'prompt' };
 const PERM_TXT = { granted: 'Permitido', denied: 'Bloqueado', prompt: 'Sin pedir' };
 function setPerm(k, st) {
@@ -2351,6 +2437,8 @@ async function readPerms() {
   }
 }
 function primeGeo(onOk) {
+  // en la app el permiso lo pide el GPS nativo al arrancar (si no, iPhone preguntaría dos veces)
+  if (NATIVE) { startGeo(); onOk?.(); return; }
   if (!('geolocation' in navigator)) return;
   navigator.geolocation.getCurrentPosition((pos) => {
     setPerm('geo', 'granted');
@@ -2363,17 +2451,26 @@ function openPerm() {
   const pEl = $('#perm'); setLegend(false); pEl.hidden = false; teamEl.hidden = true; teamBtn.setAttribute('aria-expanded', 'false'); layersEl.hidden = true; layersBtn.setAttribute('aria-expanded', 'false');
   $('#perm-inapp').hidden = !isInApp;
   $('#perm-ios').open = isIOS && !/CriOS/.test(UA); $('#perm-ioschrome').open = isIOS && /CriOS/.test(UA); $('#perm-android').open = !isIOS && /Android/.test(UA);
+  // en la app los permisos son de la app, no del navegador
+  ['#perm-ios', '#perm-ioschrome', '#perm-android'].forEach((id) => { $(id).hidden = NATIVE; });
+  $('#perm-app').hidden = !NATIVE; $('#perm-app').open = NATIVE; $('#perm-bg-row').hidden = !ANDROID_APP;
+  readBgPerm();
   readPerms().then(diag);
 }
 function diag() {
   const br = (UA.match(/(CriOS|FxiOS|EdgA|SamsungBrowser|Chrome|Firefox|Version)\/([\d.]+)/) || [])[0] || 'desconocido';
   const os = isIOS ? 'iOS ' + ((UA.match(/OS (\d+[_\d]*)/) || [])[1] || '').replace(/_/g, '.') : ((UA.match(/Android [\d.]+/) || ['otro'])[0]);
   const n = team.clients.filter((c) => c.connected).length;
-  $('#perm-diag').textContent = `Diagnóstico · ${os} · ${br}${isInApp ? ' · dentro de otra app' : ''} · https ${window.isSecureContext ? 'sí' : 'NO'} · servidores ${team.on ? n + '/' + BROKERS.length : 'sin entrar'} · GPS ${PERM_TXT[perm.geo]}${team.myPos ? ' (±' + Math.round(team.myPos.acc) + ' m)' : ''} · micro ${PERM_TXT[perm.mic]}`;
+  $('#perm-diag').textContent = `Diagnóstico · ${os} · ${NATIVE ? 'app' : br}${isInApp ? ' · dentro de otra app' : ''} · https ${window.isSecureContext ? 'sí' : 'NO'} · servidores ${team.on ? n + '/' + BROKERS.length : 'sin entrar'} · GPS ${PERM_TXT[perm.geo]}${team.myPos ? ' (±' + Math.round(team.myPos.acc) + ' m)' : ''} · micro ${PERM_TXT[perm.mic]}`;
 }
 $('#perm-close').addEventListener('click', () => { $('#perm').hidden = true; });
 $('#perm-reload').addEventListener('click', () => location.reload());
-$('#perm-geo-btn').addEventListener('click', () => primeGeo(() => { if (team.on) { if (team.geoWatch != null) navigator.geolocation.clearWatch(team.geoWatch); startGeo(); } toast('Ubicación activada'); }));
+$('#perm-geo-btn').addEventListener('click', () => {
+  if (NATIVE) { if (perm.geo === 'denied') nat('BackgroundGeolocation', 'openSettings').catch(() => {}); else { stopGeo(); startGeo(); } return; }
+  primeGeo(() => { if (team.on) { stopGeo(); startGeo(); } toast('Ubicación activada'); });
+});
+$('#perm-settings').addEventListener('click', () => nat('BackgroundGeolocation', 'openSettings').catch(() => {}));
+$('#perm-bg-btn').addEventListener('click', () => askAndroidBackground(true));
 $('#perm-mic-btn').addEventListener('click', () => {
   if (!navigator.mediaDevices?.getUserMedia) { setPerm('mic', 'denied'); return; }
   navigator.mediaDevices.getUserMedia({ audio: true }).then((st) => { st.getTracks().forEach((tr) => tr.stop()); setPerm('mic', 'granted'); toast('Micrófono listo'); })
@@ -2384,7 +2481,8 @@ $('#perm-mic-btn').addEventListener('click', () => {
 readPerms();
 // pantalla siempre encendida mientras se está en el equipo: si el móvil se bloquea, el navegador corta el GPS
 async function requestWake() {
-  if (!navigator.wakeLock || document.visibilityState !== 'visible' || (team.wake && !team.wake.released)) return;
+  // (la app sigue mandando con la pantalla apagada: dejar que se bloquee ahorra batería)
+  if (NATIVE || !navigator.wakeLock || document.visibilityState !== 'visible' || (team.wake && !team.wake.released)) return;
   try {
     team.wake = await navigator.wakeLock.request('screen');
     team.wake.addEventListener('release', () => { if (team.on && document.visibilityState === 'visible') setTimeout(requestWake, 1000); });
@@ -2404,7 +2502,8 @@ let hiddenAt = 0;
 function onHide() {
   if (!team.on) return;
   hiddenAt = hiddenAt || Date.now();
-  if (team.bgSealed) publishAll('/p/' + team.me.id, team.bgSealed, { qos: 0, retain: true });
+  // la app sigue mandando la ubicación en segundo plano: no hay nada que avisar
+  if (!NATIVE && team.bgSealed) publishAll('/p/' + team.me.id, team.bgSealed, { qos: 0, retain: true });
 }
 async function onShow() {
   if (!team.on) return;
@@ -2412,7 +2511,8 @@ async function onShow() {
   requestWake(); startGeo(); primeGeo();
   if (away > 8000 || !team.clients.some((c) => c.connected)) await reconnectBrokers();
   publishPresence(true);
-  if (away > 30000) toast(`Has estado ${away < 90000 ? Math.round(away / 1000) + ' s' : Math.round(away / 60000) + ' min'} fuera de la web y el equipo no veía dónde estabas. Ya vuelves a aparecer.`, '#ff9b3d');
+  if (ANDROID_APP && $('#perm').hidden === false) readBgPerm();
+  if (away > 30000 && !NATIVE) toast(`Has estado ${away < 90000 ? Math.round(away / 1000) + ' s' : Math.round(away / 60000) + ' min'} fuera de la web y el equipo no veía dónde estabas. Ya vuelves a aparecer.`, '#ff9b3d');
 }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') onShow(); else onHide(); });
 window.addEventListener('pagehide', onHide);
@@ -2474,7 +2574,7 @@ function onPresence(msg) {
   if (!m) { m = { id: msg.id }; team.members.set(msg.id, m); }
   const name = cleanName(msg.name), col = cleanCol(msg.col);
   if (m.av && (m.name !== name || m.col !== col)) { dropAvatar(m.av); m.av = null; }
-  Object.assign(m, { name, col, ts: Math.min(+msg.ts || Date.now(), Date.now()), bg: msg.bg === 1,
+  Object.assign(m, { name, col, ts: Math.min(+msg.ts || Date.now(), Date.now()), bg: msg.bg === 1, nb: msg.nb === 1,
     lat: Number.isFinite(msg.lat) ? msg.lat : null, lon: Number.isFinite(msg.lon) ? msg.lon : null, acc: Number.isFinite(msg.acc) ? msg.acc : null });
   placeEntry(m, false);
   if (isNew && m.ts > team.joinedAt - 2000) toast(`${name} se ha unido al equipo`, col);
@@ -2585,6 +2685,12 @@ function setPocket(v) {
   ambLevel();
 }
 $('#tl-pocket').addEventListener('click', () => setPocket(true));
+if (NATIVE) {
+  // en la app no hace falta la pantalla negra: se puede bloquear el móvil y el equipo te sigue viendo
+  $('#tl-pocket').closest('.trow').style.display = 'none';
+  $('#tl-pocket-txt').textContent = 'Puedes bloquear el móvil o cambiar de app: el equipo te sigue viendo. Si cierras la app deslizándola o sales del equipo, se deja de compartir.';
+  $('#tj-fine').textContent = 'Tu ubicación solo la ve quien tenga el código del equipo, también con el móvil bloqueado mientras sigas dentro. Puedes pegar aquí el enlace entero. Todo viaja cifrado de extremo a extremo.';
+}
 {
   const hold = $('#pocket-hold'); let t0 = 0, raf = 0;
   const stop = () => { cancelAnimationFrame(raf); raf = 0; hold.style.setProperty('--p', 0); };
@@ -2619,7 +2725,8 @@ ROSTER.forEach((r) => {
 });
 async function pickRoster(r) {
   unlockAudio(); requestWake(); primeGeo();
-  let code = $('#tj-code').value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const typed = $('#tj-code').value;
+  let code = ((typed.match(/equipo=([A-Z0-9]{6,16})/i) || [])[1] || typed).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 16);
   if (code && code.length < 6) { $('#tj-msg').textContent = 'El código de equipo tiene al menos 6 caracteres. Déjalo vacío para crear uno nuevo.'; return; }
   if (!code) code = newCode();
   const btns = rosterEl.querySelectorAll('button'); btns.forEach((x) => { x.disabled = true; });
@@ -2635,6 +2742,7 @@ async function joinTeam(name, col, code, gesture) {
   requestWake();
   const { key, topic } = await deriveTeam(code);
   team.key = key; team.topic = topic; team.on = true; team.joinedAt = Date.now();
+  if (NATIVE) prepSyncSeal(code);
   history.replaceState(null, '', '#equipo=' + code);
   $('#team-join').hidden = true; $('#team-live').hidden = false;
   $('#tl-code').textContent = code.replace(/(.{5})(.+)/, '$1·$2');
@@ -2650,8 +2758,8 @@ async function leaveTeam() {
   if (!team.on) return;
   try { const bye = await seal({ k: 'x', id: team.me.id, ts: Date.now() }); publishAll('/r', bye, { qos: 0 }); publishAll('/p/' + team.me.id, '', { qos: 0, retain: true }); } catch (e) { /* sin conexión */ }
   setTimeout(() => { team.clients.forEach((c) => c.end(true)); team.clients = []; }, 400);
-  if (team.geoWatch != null) navigator.geolocation.clearWatch(team.geoWatch);
-  team.geoWatch = null; team.on = false; team.myPos = null; team.follow = false; team.bgSealed = null; syncFollow(); setPocket(false);
+  stopGeo(); sealSync = null;
+  team.on = false; team.myPos = null; team.follow = false; team.bgSealed = null; syncFollow(); setPocket(false);
   for (const m of team.members.values()) dropAvatar(m.av);
   team.members.clear(); if (team.meEntry) { dropAvatar(team.meEntry.av); team.meEntry = null; }
   for (const id of [...pings.keys()]) dropPing(id);
@@ -3001,7 +3109,7 @@ if (MODE === 'artifact') {
 {
   let installEvt = null;
   const installBtn = $('#btn-install');
-  installBtn.hidden = MODE === 'artifact' || matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  installBtn.hidden = MODE === 'artifact' || NATIVE || matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
   window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installEvt = e; });
   window.addEventListener('appinstalled', () => { installBtn.hidden = true; });
   installBtn.addEventListener('click', async () => {
