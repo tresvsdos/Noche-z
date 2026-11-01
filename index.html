@@ -174,14 +174,19 @@ button { font: inherit; color: inherit; }
 .hud { position: absolute; left: var(--gap-x); right: var(--gap-xr); bottom: calc(var(--tab-h) + 12px); z-index: 8; display: flex; justify-content: center; pointer-events: none; }
 body.in-team .hud { bottom: calc(var(--tab-h) + 108px); }
 .readout {
-  position: relative; box-sizing: border-box; width: min(420px, 100%); padding: 12px 48px 13px 15px; pointer-events: auto;
-  background: var(--glass); border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 14px 40px rgba(0,0,0,.55);
+  position: relative; box-sizing: border-box; max-width: min(400px, 100%); padding: 9px 44px 10px 14px; pointer-events: auto;
+  background: var(--glass); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.5);
   backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); animation: sheet-in .22s cubic-bezier(.2, .85, .25, 1);
 }
-.readout .k { font-family: var(--f-mono); font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--ash); }
-.readout .v { font-family: var(--f-display); font-size: 30px; line-height: 1.05; color: #fff; letter-spacing: .03em; }
-.readout .s { margin-top: 2px; font-size: 14px; color: var(--ash); }
-.x2 { position: absolute; top: 10px; right: 10px; width: 32px; height: 32px; border-radius: 50%; font-size: 19px; background: rgba(236,229,211,.06); }
+.readout .v { font-family: var(--f-display); font-size: 21px; line-height: 1.1; color: #fff; letter-spacing: .03em; }
+.readout .s { font-size: 13px; color: var(--ash); }
+.ask {
+  margin-top: 7px; height: 32px; padding: 0 14px; border-radius: 999px; cursor: pointer;
+  background: rgba(255,155,61,.12); border: 1px solid rgba(255,155,61,.55); color: #fff;
+  font-size: 13px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+}
+.readout:has(.acts:not([hidden])) { width: min(400px, 100%); }
+.x2 { position: absolute; top: 8px; right: 8px; width: 30px; height: 30px; border-radius: 50%; font-size: 18px; background: rgba(236,229,211,.06); }
 .compass {
   width: 46px; height: 46px; border-radius: 50%; background: var(--glass); box-shadow: 0 6px 18px rgba(0,0,0,.45); border: 1px solid var(--line); cursor: pointer;
   display: grid; place-items: center; padding: 0; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
@@ -363,6 +368,28 @@ body.pocket .talking, body.pocket .toasts { z-index: 31; }
 .loader .bar { width: 220px; max-width: 70vw; height: 3px; margin: 14px auto 8px; background: rgba(236,229,211,.15); overflow: hidden; }
 .loader .bar span { display: block; height: 100%; width: 0; background: var(--blood); transition: width .2s ease; }
 .loader p { margin: 0; font-family: var(--f-mono); font-size: 12px; color: var(--ash); }
+/* ---------- entrada a la app ---------- */
+.loader { background: radial-gradient(ellipse 90% 60% at 50% 44%, #240706 0%, var(--night) 70%); }
+.loader img { animation: flicker 3.2s linear infinite; }
+@keyframes flicker { 0%, 7%, 9%, 11%, 47%, 49%, 100% { opacity: 1; } 8%, 10%, 48% { opacity: .25; } }
+.enter {
+  display: block; margin: 24px auto 0; height: 50px; padding: 0 36px; cursor: pointer;
+  background: rgba(227,52,42,.16); border: 1px solid rgba(227,52,42,.75); border-radius: 999px; color: #fff;
+  font-family: var(--f-display); font-size: 17px; letter-spacing: .1em; text-transform: uppercase;
+  animation: enter-pulse 1.8s ease-in-out infinite;
+}
+@keyframes enter-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(227,52,42,.45); } 50% { box-shadow: 0 0 0 12px rgba(227,52,42,0), 0 0 30px rgba(227,52,42,.35); } }
+/* la interfaz entra cuando la cámara ya está bajando */
+.brand, .navpad, .tabbar { transition: transform .8s cubic-bezier(.2, .85, .25, 1), opacity .8s ease; }
+body.intro .brand, body.intro .navpad { transform: translateY(-30px); opacity: 0; }
+body.intro .tabbar { transform: translateY(110%); }
+.flash { position: absolute; inset: 0; z-index: 19; pointer-events: none; background: radial-gradient(ellipse at 50% 50%, rgba(255,70,40,.4), transparent 62%); animation: flash 1.3s ease-out forwards; }
+@keyframes flash { to { opacity: 0; } }
+/* botón del sonido ambiente (sirena con o sin destellos) */
+.compass.amb svg { width: 22px; height: 22px; fill: none; stroke: var(--bone); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.compass.amb .off, .compass.amb[aria-pressed="false"] .on { display: none; }
+.compass.amb[aria-pressed="false"] .off { display: block; }
+.compass.amb[aria-pressed="true"] .on path:last-child { stroke: var(--ember); }
 
 /* ---------- móvil ---------- */
 @media (max-width: 700px) {
@@ -380,6 +407,8 @@ body.pocket .talking, body.pocket .toasts { z-index: 31; }
 }
 @media (prefers-reduced-motion: reduce) {
   .loader { transition: none; }
+  .loader img, .enter { animation: none; }
+  .brand, .navpad, .tabbar { transition: none; }
   .sheet, .readout { animation: none; }
 }
 </style>
@@ -490,15 +519,16 @@ body.pocket .talking, body.pocket .toasts { z-index: 31; }
         <text x="20" y="13.5" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="7" font-weight="700" fill="#fff">N</text>
       </svg>
     </button>
+    <button class="compass amb" id="btn-amb" type="button" title="Sonido ambiente" aria-label="Sonido ambiente" aria-pressed="true"><svg class="on" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18v-5a5 5 0 0 1 10 0v5"/><path d="M5 18h14v2.5H5z"/><path d="M12 2.5v2.2M4.2 6.2l1.6 1.6M19.8 6.2l-1.6 1.6"/></svg><svg class="off" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18v-5a5 5 0 0 1 10 0v5"/><path d="M5 18h14v2.5H5z"/><path d="M3.5 3.5l17 17"/></svg></button>
     <button class="compass locate" id="btn-me" type="button" title="Centrar en mí" aria-label="Centrar en mí" aria-pressed="false" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6.5"/><circle cx="12" cy="12" r="2" fill="currentColor"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3"/></svg></button>
   </div>
 
   <div class="hud" id="hud" hidden>
     <div class="readout" id="readout" aria-live="polite">
       <button type="button" class="x x2" id="hud-close" aria-label="Quitar casilla">×</button>
-      <div class="k">Casilla</div>
       <div class="v" id="cell-v">—</div>
       <div class="s" id="cell-s">Toca el mapa</div>
+      <button type="button" class="ask" id="hud-ask" hidden>¿Avisar aquí?</button>
       <div class="acts" id="hud-acts" role="group" aria-label="Avisar al equipo" hidden>
         <button type="button" data-t="ir"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h14M13 6l6 6-6 6"/></svg>Voy allí</button>
         <button type="button" data-t="peligro"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5 2.8 19.5h18.4z"/><path d="M12 10v4.2M12 16.9v.2"/></svg>Peligro</button>
@@ -554,6 +584,7 @@ body.pocket .talking, body.pocket .toasts { z-index: 31; }
       <img src="assets/sz-logo.png" alt="Survival Zombie" onerror="this.remove()">
       <div class="bar"><span id="load-bar"></span></div>
       <p id="load-msg">Cargando ortofoto del IGN…</p>
+      <button type="button" class="enter" id="enter" hidden>Entrar</button>
     </div>
   </div>
 </div>
@@ -1803,7 +1834,7 @@ function updateFlight(now) {
   applyCam();
   if (k >= 1) flight = null;
 }
-function overview(instant = false) {
+function overview(instant = false, dur = 1600) {
   const pts = [...Object.values(EV.points)];
   let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9;
   for (const p of pts) { x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); z0 = Math.min(z0, p.z); z1 = Math.max(z1, p.z); }
@@ -1814,7 +1845,7 @@ function overview(instant = false) {
   const dist = THREE.MathUtils.clamp(halfW / Math.tan(hf / 2), 380, 1700) * (wide ? 0.92 : 1.0);
   const polar = wide ? 48 : 34;
   if (instant) { cam.target.set(cx, 0, cz); cam.dist = dist; cam.phi = THREE.MathUtils.degToRad(polar); cam.theta = 0.12; applyCam(); }
-  else flyTo(new THREE.Vector3(cx, 0, cz), dist, polar, 0.12);
+  else flyTo(new THREE.Vector3(cx, 0, cz), dist, polar, 0.12, dur);
   set2D(false);
 }
 function focusMarker(mk) { flyTo(new THREE.Vector3(mk.x, 0, mk.z), 150, 55); }
@@ -1860,7 +1891,8 @@ function cellInfo() {
   cellS.textContent = parts.length ? parts.join(' · ') : 'Casilla marcada en el mapa';
 }
 // avisos al equipo desde la casilla (solo con el modo equipo activo)
-function setActs(v) { $('#hud-acts').hidden = !v; $('#readout').classList.toggle('acting', v); }
+function setActs(v) { $('#hud-ask').hidden = !v; $('#hud-acts').hidden = true; }
+$('#hud-ask').addEventListener('click', () => { $('#hud-ask').hidden = true; $('#hud-acts').hidden = false; });
 function clearCell() {
   U.uSel.value.set(-99, -99); $('#hud').hidden = true; setActs(false); target.visible = false;
   if (pick.col != null || pick.row != null) setLines(null, null);
@@ -1967,8 +1999,13 @@ function handleTap(x, y) {
   const tag = tagAt(x, y);
   if (tag) { lastTap = 0; tag.click(); return; }
   const now = performance.now();
-  if (now - lastTap < 340 && Math.hypot(x - lastTapXY[0], y - lastTapXY[1]) < 40) { lastTap = 0; zoomStep(0.45, x, y); return; }
+  if (now - lastTap < 340 && Math.hypot(x - lastTapXY[0], y - lastTapXY[1]) < 40) { lastTap = 0; clearTimeout(tapTimer); zoomStep(0.45, x, y); return; }
   lastTap = now; lastTapXY = [x, y];
+  // el toque simple espera a ver si es un doble toque (ampliar): así ampliar no marca casillas
+  clearTimeout(tapTimer); tapTimer = setTimeout(() => tapAt(x, y), 300);
+}
+let tapTimer = null;
+function tapAt(x, y) {
   const p = groundAt(x, y, new THREE.Vector3()); if (!p) return;
   const [u, v] = worldToGrid(p.x, p.z);
   if (gridText.visible) {
@@ -2098,6 +2135,7 @@ function frame() {
 
   if (zMesh.visible) updateZombies(dt);
   if (heli.visible) updateHeli(t);
+  if (amb.rotor) updateRotor();
 
   updateFlight(now);
   updateCam(real);
@@ -2108,7 +2146,30 @@ function frame() {
   if (n > 0.05) { bloom.strength = 0.6 * n; composer.render(real); } else renderer.render(scene, camera);
   if (now - lastLabel > 30 || !active) { updateLabels(); lastLabel = now; }
 }
-manager.onLoad = () => { $('#loader').classList.add('done'); kick(1500); if (!hintSeen) { showHint(); setTimeout(hideHint, 9000); } };
+// entrada a la app: con todo cargado aparece «Entrar»; ese toque desbloquea el audio y lanza el vuelo de cámara
+document.body.classList.add('intro');
+manager.onLoad = () => {
+  kick(1500);
+  $('#load-bar').parentElement.hidden = true; loadMsg.textContent = 'Mapa del Survival Zombie Night';
+  $('#enter').hidden = false;
+  $('#loader').addEventListener('click', enterApp);
+};
+let entered = false;
+function enterApp() {
+  if (entered || $('#enter').hidden) return;
+  entered = true;
+  unlockAudio().then((ok) => { if (ok) $('#audio-unlock')?.remove(); if (ok && amb.on) startAmbient(true); });
+  $('#loader').classList.add('done');
+  const fl = document.createElement('div'); fl.className = 'flash'; $('#app').appendChild(fl); setTimeout(() => fl.remove(), 1400);
+  if (!reduceMotion) {
+    // desde muy alto y girado hasta la vista general
+    cam.dist = 2500; cam.phi = THREE.MathUtils.degToRad(8); cam.theta = 0.12 - 1.2; applyCam();
+    overview(false, 3000);
+  }
+  setTimeout(() => document.body.classList.remove('intro'), reduceMotion ? 0 : 1500);
+  kick(3500);
+  if (!hintSeen) setTimeout(() => { showHint(); setTimeout(hideHint, 9000); }, reduceMotion ? 300 : 3200);
+}
 ['pointerdown', 'pointermove', 'wheel', 'keydown'].forEach((ev) => window.addEventListener(ev, () => kick(), { passive: true, capture: true }));
 {
   let s = null; try { s = localStorage.getItem('pv-saver'); } catch (e) { /* sin almacenamiento */ }
@@ -2521,6 +2582,7 @@ const pocketEl = $('#pocket');
 function setPocket(v) {
   power.pocket = v; pocketEl.hidden = !v; document.body.classList.toggle('pocket', v);
   if (v) { openTeam(false); requestWake(); } else kick(1500);
+  ambLevel();
 }
 $('#tl-pocket').addEventListener('click', () => setPocket(true));
 {
@@ -2601,7 +2663,7 @@ async function leaveTeam() {
 }
 
 // ---------- walkie-talkie (PCM μ-law 8 kHz en fragmentos de 0,5 s: suena igual en Android, iPhone y ordenador)
-const RATE = 8000, CH = 4000;
+const RATE = 8000, CH = 2000;   // trozos de 0,25 s: cuanto más cortos, menos tarda en llegar
 let actx = null, bus = null;
 function audioCtx() { if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)(); return actx; }
 async function unlockAudio() {
@@ -2639,6 +2701,7 @@ function linToMu(v) {
 }
 function muToLin(u) { u = ~u & 0xff; const sign = u & 0x80, exp = (u >> 4) & 7, mant = u & 0x0f; const x = (((mant << 3) + 0x84) << exp) - 0x84; return (sign ? -x : x) / 32768; }
 
+const MIC_WARM = 30000;   // el micro sigue abierto 30 s tras hablar: la siguiente vez no se pierde el principio
 const talk = { on: false, stream: null, src: null, proc: null, buf: [], i: 0, clip: null, pos: 0, timer: null, release: null, t0: 0 };
 let pttHeld = false;
 const pttEl = $('#ptt');
@@ -2651,10 +2714,11 @@ async function startTalk() {
   try { talk.stream = await micP; setPerm('mic', 'granted'); }
   catch (e) { if (e && e.name === 'NotAllowedError') { setPerm('mic', 'denied'); toast('Micrófono bloqueado · toca para arreglarlo', '#ff8a80', openPerm); } else toast('No se pudo abrir el micrófono.'); return; }
   try { if (c.state !== 'running') await c.resume(); } catch (e) { /* requiere gesto */ }
-  if (!pttHeld) { talk.release = setTimeout(() => { talk.stream?.getTracks().forEach((tr) => tr.stop()); talk.stream = null; }, 6000); return; }
+  if (!pttHeld) { talk.release = setTimeout(() => { talk.stream?.getTracks().forEach((tr) => tr.stop()); talk.stream = null; }, MIC_WARM); return; }
+  duckAmbient(true);
   talk.on = true; talk.clip = Math.random().toString(36).slice(2, 10); talk.i = 0; talk.buf = []; talk.pos = 0; talk.t0 = performance.now();
   talk.src = c.createMediaStreamSource(talk.stream);
-  talk.proc = c.createScriptProcessor(4096, 1, 1);
+  talk.proc = c.createScriptProcessor(2048, 1, 1);
   const ratio = c.sampleRate / RATE;
   talk.proc.onaudioprocess = (e) => {
     const inp = e.inputBuffer.getChannelData(0); e.outputBuffer.getChannelData(0).fill(0);
@@ -2675,15 +2739,15 @@ async function startTalk() {
 }
 function stopTalk() {
   if (!talk.on) return;
-  talk.on = false; clearTimeout(talk.timer);
+  talk.on = false; clearTimeout(talk.timer); duckAmbient(false);
   sendChunk(talk.buf.splice(0), true);
   try { talk.src.disconnect(); talk.proc.disconnect(); } catch (e) { /* ya desconectado */ }
   pttUI(false); tone(900, 0.05, audioCtx().currentTime, 0.06);
-  talk.release = setTimeout(() => { talk.stream?.getTracks().forEach((tr) => tr.stop()); talk.stream = null; }, 6000);
+  talk.release = setTimeout(() => { talk.stream?.getTracks().forEach((tr) => tr.stop()); talk.stream = null; }, MIC_WARM);
 }
 async function sendChunk(arr, last) {
   const i = talk.i++, clip = talk.clip;
-  const msg = { k: 'r', id: team.me.id, name: team.me.name, col: team.me.col, clip, i, last, d: b64e(Uint8Array.from(arr)) };
+  const msg = { k: 'r', id: team.me.id, name: team.me.name, col: team.me.col, clip, i, cs: CH, last, d: b64e(Uint8Array.from(arr)) };
   if (publishAll('/r', await seal(msg), { qos: 0 })) team.tx++;
 }
 let pttTick = null;
@@ -2703,7 +2767,7 @@ pttEl.addEventListener('keyup', (e) => { if (e.key === ' ' || e.key === 'Enter')
 const rxClips = new Map(); let radioBusyUntil = 0;
 const talkingEl = $('#talking');
 function onRadio(m) {
-  if (typeof m.clip !== 'string' || !Number.isInteger(m.i) || m.i < 0 || m.i > 60) return;
+  if (typeof m.clip !== 'string' || !Number.isInteger(m.i) || m.i < 0 || m.i > 120) return;
   if (team.muted) {
     talkingEl.hidden = false; talkingEl.querySelector('i').style.background = cleanCol(m.col); talkingEl.querySelector('span').textContent = `${cleanName(m.name)} habla · silenciado`;
     clearTimeout(onRadio.mt); onRadio.mt = setTimeout(() => { talkingEl.hidden = true; }, m.last ? 1200 : 3000);
@@ -2713,13 +2777,14 @@ function onRadio(m) {
   if (c.state !== 'running') { needAudioUnlock(); return; }
   let cl = rxClips.get(m.clip);
   if (!cl) {
-    cl = { t0: Math.max(c.currentTime + 0.55, radioBusyUntil), end: 0, name: cleanName(m.name), col: cleanCol(m.col) };
-    rxClips.set(m.clip, cl);
+    cl = { t0: Math.max(c.currentTime + 0.35, radioBusyUntil), end: 0, name: cleanName(m.name), col: cleanCol(m.col) };
+    rxClips.set(m.clip, cl); duckAmbient(true);
     squelch(cl.t0 - 0.15);
     talkingEl.hidden = false; talkingEl.querySelector('i').style.background = cl.col; talkingEl.querySelector('span').textContent = `${cl.name} está hablando`;
     try { navigator.vibrate?.(50); } catch (e) { /* opcional */ }
   }
-  let when = cl.t0 + m.i * (CH / RATE);
+  const cs = Number.isInteger(m.cs) && m.cs > 0 && m.cs <= 8000 ? m.cs : 4000;   // sin cs = versión anterior, trozos de 0,5 s
+  let when = cl.t0 + m.i * (cs / RATE);
   if (when < c.currentTime + 0.03) { const sh = c.currentTime + 0.08 - when; cl.t0 += sh; when += sh; }
   const bytes = typeof m.d === 'string' ? b64d(m.d) : new Uint8Array(0);
   if (bytes.length) {
@@ -2729,7 +2794,7 @@ function onRadio(m) {
     cl.end = Math.max(cl.end, when + bytes.length / RATE);
   }
   clearTimeout(cl.timer);
-  const finish = () => { rxClips.delete(m.clip); if (![...rxClips.values()].length) talkingEl.hidden = true; };
+  const finish = () => { rxClips.delete(m.clip); if (![...rxClips.values()].length) { talkingEl.hidden = true; duckAmbient(false); } };
   if (m.last) {
     const endAt = Math.max(cl.end, when);
     tone(1150, 0.07, endAt + 0.03, 0.07);
@@ -2743,6 +2808,106 @@ function needAudioUnlock() {
   b.textContent = 'Toca aquí para activar el sonido del walkie';
   b.addEventListener('click', async () => { if (await unlockAudio()) b.remove(); });
   $('#toasts').appendChild(b);
+}
+
+// ---------- sonido ambiente: viento, sirenas lejanas, algún estruendo y el helicóptero de la escena; todo sintetizado y flojito
+const AMB_VOL = 0.55;
+const amb = { on: store.get('pv-amb') !== '0', g: null, verb: null, rotor: null, pan: null, duck: false, tSiren: 0, tBoom: 0 };
+function noiseBuffer(c, secs, brown) {
+  const n = Math.floor(c.sampleRate * secs), b = c.createBuffer(1, n, c.sampleRate), d = b.getChannelData(0);
+  let last = 0;
+  for (let i = 0; i < n; i++) { const w = Math.random() * 2 - 1; if (brown) { last = (last + 0.02 * w) / 1.02; d[i] = last * 3.5; } else d[i] = w; }
+  return b;
+}
+function panner(c, x) { if (!c.createStereoPanner) return null; const p = c.createStereoPanner(); p.pan.value = x; return p; }
+function buildAmbient() {
+  const c = audioCtx();
+  amb.g = c.createGain(); amb.g.gain.value = 0; amb.g.connect(c.destination);
+  // reverberación generada: todo suena lejos, entre edificios
+  const ir = c.createBuffer(2, c.sampleRate * 3, c.sampleRate);
+  for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 3); }
+  amb.verb = c.createConvolver(); amb.verb.buffer = ir; amb.verb.connect(amb.g);
+  // viento: ruido marrón filtrado que sube y baja despacio
+  const wind = c.createBufferSource(); wind.buffer = noiseBuffer(c, 6, true); wind.loop = true;
+  const wf = c.createBiquadFilter(); wf.type = 'lowpass'; wf.frequency.value = 420;
+  const wg = c.createGain(); wg.gain.value = 0.22;
+  const lfo = c.createOscillator(); lfo.frequency.value = 0.07; const lg = c.createGain(); lg.gain.value = 0.12;
+  lfo.connect(lg); lg.connect(wg.gain); wind.connect(wf); wf.connect(wg); wg.connect(amb.g); wind.start(); lfo.start();
+  // rotor: ruido filtrado que late a 11 Hz; el volumen lo pone updateRotor según dónde esté el helicóptero
+  const rn = c.createBufferSource(); rn.buffer = noiseBuffer(c, 2, false); rn.loop = true;
+  const rf = c.createBiquadFilter(); rf.type = 'bandpass'; rf.frequency.value = 180; rf.Q.value = 0.9;
+  const chop = c.createGain(); chop.gain.value = 0.5;
+  const mod = c.createOscillator(); mod.frequency.value = 11; const md = c.createGain(); md.gain.value = 0.5; mod.connect(md); md.connect(chop.gain);
+  amb.rotor = c.createGain(); amb.rotor.gain.value = 0; amb.pan = panner(c, 0);
+  rn.connect(rf); rf.connect(chop); chop.connect(amb.rotor);
+  if (amb.pan) { amb.rotor.connect(amb.pan); amb.pan.connect(amb.g); } else amb.rotor.connect(amb.g);
+  const rv = c.createGain(); rv.gain.value = 0.35; amb.rotor.connect(rv); rv.connect(amb.verb);
+  rn.start(); mod.start();
+}
+// sirena lejana: aullido que sube y baja, casi todo reverberación
+function siren() {
+  if (!amb.g) return;
+  const c = audioCtx(), t0 = c.currentTime + 0.05, len = 9 + Math.random() * 5, lo = 560 + Math.random() * 60, hi = lo * 1.9;
+  const o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.setValueAtTime(lo, t0);
+  for (let t = t0; t < t0 + len; t += 4.4) { o.frequency.linearRampToValueAtTime(hi, t + 2.2); o.frequency.linearRampToValueAtTime(lo, t + 4.4); }
+  const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 1400;
+  const g = c.createGain(); g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(0.045, t0 + 2.5);
+  g.gain.setValueAtTime(0.045, t0 + len - 3); g.gain.linearRampToValueAtTime(0, t0 + len);
+  const dry = c.createGain(); dry.gain.value = 0.25; const p = panner(c, Math.random() * 1.6 - 0.8);
+  o.connect(f); f.connect(g); g.connect(amb.verb);
+  if (p) { g.connect(p); p.connect(dry); } else g.connect(dry);
+  dry.connect(amb.g); o.start(t0); o.stop(t0 + len + 0.1);
+}
+// estruendo: golpe grave que cae y un rumor de ruido
+function boom(vol) {
+  if (!amb.g) return;
+  const c = audioCtx(), t0 = c.currentTime + 0.02;
+  const o = c.createOscillator(); o.frequency.setValueAtTime(90, t0); o.frequency.exponentialRampToValueAtTime(28, t0 + 1.6);
+  const g = c.createGain(); g.gain.setValueAtTime(vol, t0); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 2.2);
+  const n = c.createBufferSource(); n.buffer = noiseBuffer(c, 2.5, true);
+  const nf = c.createBiquadFilter(); nf.type = 'lowpass'; nf.frequency.setValueAtTime(900, t0); nf.frequency.exponentialRampToValueAtTime(120, t0 + 2);
+  const ng = c.createGain(); ng.gain.setValueAtTime(vol * 1.2, t0); ng.gain.exponentialRampToValueAtTime(0.0001, t0 + 2.4);
+  o.connect(g); n.connect(nf); nf.connect(ng);
+  for (const x of [g, ng]) { x.connect(amb.g); x.connect(amb.verb); }
+  o.start(t0); o.stop(t0 + 2.4); n.start(t0); n.stop(t0 + 2.5);
+}
+const ambAudible = () => amb.on && !power.pocket && document.visibilityState === 'visible';
+function ambLevel() {
+  if (!amb.g) return;
+  const v = ambAudible() ? AMB_VOL * (amb.duck ? 0.2 : 1) : 0;
+  amb.g.gain.setTargetAtTime(v, audioCtx().currentTime, v ? 0.8 : 0.25);
+}
+function startAmbient(intro) {
+  if (audioCtx().state !== 'running') return;
+  if (!amb.g) {
+    buildAmbient();
+    const nextSiren = () => { amb.tSiren = setTimeout(() => { if (ambAudible()) siren(); nextSiren(); }, 30000 + Math.random() * 40000); };
+    const nextBoom = () => { amb.tBoom = setTimeout(() => { if (ambAudible()) boom(0.1); nextBoom(); }, 70000 + Math.random() * 80000); };
+    nextSiren(); nextBoom();
+  }
+  ambLevel();
+  if (intro) { boom(0.22); setTimeout(siren, 1200); }
+}
+// baja el ambiente mientras suena o se usa el walkie
+function duckAmbient(v) { amb.duck = v; ambLevel(); }
+function setAmb(v) {
+  amb.on = v; store.set('pv-amb', v ? '1' : '0'); $('#btn-amb').setAttribute('aria-pressed', String(v));
+  if (v) unlockAudio().then((ok) => { if (ok) startAmbient(false); }); else ambLevel();
+}
+$('#btn-amb').setAttribute('aria-pressed', String(amb.on));
+$('#btn-amb').addEventListener('click', () => { setAmb(!amb.on); toast(amb.on ? 'Sonido ambiente activado' : 'Sonido ambiente quitado'); });
+document.addEventListener('visibilitychange', ambLevel);
+const _hp = new THREE.Vector3();
+function updateRotor() {
+  let v = 0, pan = 0;
+  if (heli.visible) {
+    const d = Math.hypot(heli.position.x - cam.target.x, heli.position.z - cam.target.z) + cam.dist * 0.35;
+    v = Math.pow(260 / Math.max(d, 260), 1.6) * 0.16;
+    _hp.copy(heli.position).project(camera); pan = THREE.MathUtils.clamp(_hp.x, -1, 1) * 0.8;
+  }
+  const now = audioCtx().currentTime;
+  amb.rotor.gain.setTargetAtTime(v, now, 0.3);
+  if (amb.pan) amb.pan.pan.setTargetAtTime(pan, now, 0.3);
 }
 
 // ---------- avisos sobre el mapa: voy allí, peligro, reunión aquí (sin tipo = aviso de la versión anterior)
@@ -2763,6 +2928,7 @@ $('#hud-acts').addEventListener('click', async (e) => {
     x: +lastTapWorld.x.toFixed(1), z: +lastTapWorld.z.toFixed(1), cell: cellName(u, v), ts: Date.now() };
   publishAll('/k', await seal(msg), { qos: 1 });
   showPing(msg); toast(PING[msg.t].sent(msg.cell || 'el mapa'), team.me.col);
+  $('#hud-acts').hidden = true; $('#hud-ask').hidden = false;
 });
 function showPing(m) {
   const x = +m.x, z = +m.z; if (!Number.isFinite(x) || !Number.isFinite(z) || Math.abs(x) > 3000 || Math.abs(z) > 3000) return;
@@ -2843,7 +3009,7 @@ if (MODE === 'artifact') {
     toast(isIOS ? 'En Safari: botón Compartir y «Añadir a pantalla de inicio»' : 'En Chrome: menú ⋮ y «Instalar aplicación» o «Añadir a pantalla de inicio»');
   });
 }
-window.__pv.team = team;
+window.__pv.team = team; window.__pv.amb = amb;
 
 </script>
 
