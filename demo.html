@@ -17,7 +17,7 @@
 <body>
 <title>Survival Zombie · Demo</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<meta name="description" content="Mapa 3D del Survival Zombie Night de Zaragoza (31 de octubre de 2026), con equipo en directo y walkie-talkie.">
+<meta name="description" content="Demo del mapa 3D de Survival Zombie en Puerto Venecia (Zaragoza): tu grupo en el mapa y la vista de organización.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bowlby+One+SC&family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
@@ -422,7 +422,7 @@ body.intro .tabbar { transform: translateY(110%); }
   <header class="brand">
     <p class="eyebrow">Survival Zombie Night · mapa del evento</p>
     <h1><img src="assets/sz-logo.png" alt="Survival Zombie" width="224" height="114"></h1>
-    <p class="when">Sábado 31 oct 2026 · <span class="mono">23:59 → 06:00</span></p>
+    <p class="when">Puerto Venecia · Zaragoza</p>
     <button type="button" class="tpill" id="team-pill" hidden><i></i><span>Equipo</span></button>
   </header>
 
@@ -631,7 +631,7 @@ const svgIcon = (k) => `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill-r
 
 const MK = [
   { id: 'checkin', key: 'checkin', name: 'Check-in', sub: 'Punto de encuentro', col: '#2e8bff' },
-  { id: 'escena', key: 'escena', name: 'Escena inicial / final', short: 'Escena', sub: 'A las 23:59h y a las 05:30h', col: '#ffd21f' },
+  { id: 'escena', key: 'escena', name: 'Escena inicial / final', short: 'Escena', sub: 'Al empezar y al acabar la noche', col: '#ffd21f' },
   { id: 'recogida1', key: 'recogida', name: 'Recogida', sub: 'Una recogida por grupo', col: '#ff4436' },
   { id: 'recogida2', key: 'recogida', name: 'Recogida', sub: 'Una recogida por grupo', col: '#ff4436' },
   { id: 'avituallamiento', key: 'avit', name: 'Avituallamiento', short: 'Avituall.', sub: 'Punto de avituallamiento', col: '#8fdc2c' },
@@ -1713,7 +1713,7 @@ function setLegend(open) {
 legendBtn.addEventListener('click', () => setLegend(legend.hidden));
 const legendItems = [
   { key: 'checkin', name: 'Check-in', sub: 'Punto de encuentro', col: '#2e8bff', ids: ['checkin'] },
-  { key: 'escena', name: 'Escena inicial / final', sub: 'A las 23:59h y a las 05:30h', col: '#ffd21f', ids: ['escena'] },
+  { key: 'escena', name: 'Escena inicial / final', sub: 'Al empezar y al acabar la noche', col: '#ffd21f', ids: ['escena'] },
   { key: 'recogida', name: 'Recogida', sub: 'Una recogida por grupo', col: '#ff4436', ids: ['recogida1', 'recogida2'] },
   { key: 'avit', name: 'Avituallamiento', sub: 'Punto de avituallamiento', col: '#8fdc2c', ids: ['avituallamiento'] },
   { key: 'zona', name: 'Zonas no accesibles', sub: 'No accesibles o no permitidas', col: '#c4211a', ids: ['skull1', 'skull2'] },
@@ -3190,15 +3190,17 @@ body.dm-org .dm-tip { bottom: calc(var(--tab-h) + 132px); }
   position: absolute; left: 50%; top: calc(var(--gap-t) + 2px); transform: translateX(-50%); z-index: 20;
   width: min(460px, calc(100% - 24px)); box-sizing: border-box; padding: 12px 14px;
   background: rgba(16, 14, 8, .95); border: 1px solid rgba(255, 210, 31, .65); border-radius: 16px; box-shadow: 0 14px 40px rgba(0,0,0,.65);
-  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); animation: sheet-in .28s cubic-bezier(.2, .85, .25, 1);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); animation: dm-in .28s cubic-bezier(.2, .85, .25, 1);
 }
+/* como sheet-in pero sin perder el centrado (si no, entra en diagonal desde la derecha) */
+@keyframes dm-in { from { transform: translate(-50%, -16px); opacity: 0; } }
 .dm-alert .k { font-family: var(--f-mono); font-size: 11px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: #ffd21f; }
 .dm-alert b { display: block; margin-top: 4px; font-size: 18px; line-height: 1.22; color: #fff; }
 .dm-alert small { display: block; margin-top: 3px; font-size: 13.5px; color: var(--ash); font-variant-numeric: tabular-nums; }
 .dm-alert .row { display: flex; gap: 6px; margin-top: 10px; }
 .dm-alert .row button { flex: 1; height: 42px; border-radius: 12px; border: 1px solid var(--line); background: rgba(236,229,211,.08); color: var(--bone); font-size: 14px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; cursor: pointer; }
 .dm-alert .row .go { background: var(--blood); border-color: var(--blood); color: #fff; }
-.dm-alert.sos { background: rgba(34, 6, 6, .96); border-color: rgba(227, 52, 42, .9); animation: sheet-in .28s cubic-bezier(.2, .85, .25, 1), dm-pulse 1.1s ease-in-out infinite; }
+.dm-alert.sos { background: rgba(34, 6, 6, .96); border-color: rgba(227, 52, 42, .9); animation: dm-in .28s cubic-bezier(.2, .85, .25, 1), dm-pulse 1.1s ease-in-out infinite; }
 .dm-alert.sos .k { color: #ff6b5f; }
 .dm-alert.ok { border-color: rgba(143, 220, 44, .7); }
 .dm-alert.ok .k { color: var(--c-avit); }
