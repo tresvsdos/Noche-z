@@ -733,6 +733,7 @@ const U = {
   uGridO: { value: new THREE.Vector2(G.x[2], G.z[2]) },
   uSel: { value: new THREE.Vector2(-99, -99) },
   uLine: { value: new THREE.Vector2(-99, -99) },   // columna y fila resaltadas por el buscador (-99 = ninguna)
+  uHQ: { value: 1 },   // aspecto de alta calidad: menos niebla, más color y volumen (0 = el aspecto antiguo, más lechoso)
 };
 
 const COMMON = /* glsl */`
@@ -742,7 +743,7 @@ uniform vec4 uFire[NF]; uniform vec3 uFireCol[NF];
 uniform vec4 uHeli; uniform vec3 uFogCol; uniform float uFogDen; uniform vec3 uMoonDir;
 uniform vec4 uDet; uniform vec4 uWide;
 uniform sampler2D tDet; uniform sampler2D tWide; uniform sampler2D tLight;
-uniform float uLampK;
+uniform float uLampK; uniform float uHQ;
 uniform vec4 uGridM; uniform vec2 uGridO; uniform vec2 uLine;
 vec2 gridUV(vec2 xz){ vec2 q = xz - uGridO; return vec2(uGridM.x * q.x + uGridM.y * q.y, uGridM.z * q.x + uGridM.w * q.y); }
 // franjas del buscador de casilla: la columna llega hasta los números del borde y la fila hasta las letras
@@ -778,9 +779,9 @@ vec3 fireLight(vec3 p, vec3 n, float wrap){
   return acc;
 }
 vec3 heliLight(vec3 p){ float d = length(p.xz - uHeli.xy); return vec3(0.85, 0.92, 1.0) * (1.0 - smoothstep(uHeli.z * 0.5, uHeli.z, d)) * uHeli.w; }
-vec3 applyFog(vec3 c, vec3 p){ float d = length(p - cameraPosition); float f = 1.0 - exp(-pow(d * uFogDen, 1.6)); return mix(c, uFogCol, clamp(f, 0.0, 1.0)); }
-vec3 nightGrade(vec3 a){ float l = dot(a, vec3(0.3, 0.59, 0.11)); return mix(vec3(l), a, 0.5) * vec3(0.94, 0.97, 1.06); }
-vec3 ambientNight(vec3 n, float occ){ return vec3(0.1, 0.115, 0.17) * (0.5 + 0.5 * occ) + vec3(0.17, 0.19, 0.27) * max(dot(n, uMoonDir), 0.0) * occ; }
+vec3 applyFog(vec3 c, vec3 p){ float d = length(p - cameraPosition); float f = 1.0 - exp(-pow(d * uFogDen * (1.0 - 0.45 * uHQ), 1.6)); return mix(c, uFogCol, clamp(f, 0.0, 1.0)); }
+vec3 nightGrade(vec3 a){ float l = dot(a, vec3(0.3, 0.59, 0.11)); return mix(vec3(l), a, 0.5 + 0.22 * uHQ) * mix(vec3(0.94, 0.97, 1.06), vec3(0.98, 0.98, 1.02), uHQ); }
+vec3 ambientNight(vec3 n, float occ){ return (vec3(0.1, 0.115, 0.17) * (0.5 + 0.5 * occ) + vec3(0.17, 0.19, 0.27) * max(dot(n, uMoonDir), 0.0) * occ) * (1.0 + 0.3 * uHQ); }
 `;
 
 // material iluminado genérico (edificios aparte)
@@ -1012,7 +1013,8 @@ function buildBuildings() {
           vec3 glass = vec3(0.07, 0.09, 0.11);
           alb = mix(c0, glass, win);
           alb = mix(alb, c0 * 1.12, step(h - 0.8, v));
-          alb *= 0.8 + 0.2 * smoothstep(0.0, 2.5, v);
+          // pie de fachada más oscuro (contacto con el suelo); en alta calidad, más marcado y más claro hacia arriba: da volumen
+          alb *= mix(0.8 + 0.2 * smoothstep(0.0, 2.5, v), (0.5 + 0.5 * smoothstep(0.0, 8.0, v)) * (0.92 + 0.16 * smoothstep(0.0, h, v)), uHQ);
           float r = hash12(id * 1.37 + seed * 7.13);
           float litP = box ? 0.5 : (mall ? 0.22 : 0.14);
           float lit = step(r, litP) * win;
@@ -2157,6 +2159,8 @@ document.body.classList.add('intro');
 manager.onLoad = () => {
   kick(1500);
   $('#load-bar').parentElement.hidden = true; loadMsg.textContent = 'Mapa del Survival Zombie Night';
+  // en el vídeo de presentación (video.html) el arranque lo lleva su guion (tools/video.js)
+  if (MODE === 'video') { window.__pvVideoReady = true; window.dispatchEvent(new Event('pv-video-ready')); return; }
   $('#enter').hidden = false;
   $('#loader').addEventListener('click', enterApp);
 };
@@ -3034,7 +3038,8 @@ $('#hud-acts').addEventListener('click', async (e) => {
   const [u, v] = worldToGrid(lastTapWorld.x, lastTapWorld.z);
   const msg = { k: 'k', t: pingType(b.dataset.t), id: team.me.id, name: team.me.name, col: team.me.col, pid: Math.random().toString(36).slice(2, 10),
     x: +lastTapWorld.x.toFixed(1), z: +lastTapWorld.z.toFixed(1), cell: cellName(u, v), ts: Date.now() };
-  publishAll('/k', await seal(msg), { qos: 1 });
+  if (MODE === 'demo') window.dispatchEvent(new CustomEvent('pv-demo-ping', { detail: msg }));   // el grupo simulado reacciona
+  else publishAll('/k', await seal(msg), { qos: 1 });
   showPing(msg); toast(PING[msg.t].sent(msg.cell || 'el mapa'), team.me.col);
   $('#hud-acts').hidden = true; $('#hud-ask').hidden = false;
 });
@@ -3060,7 +3065,7 @@ async function removePing(pid, broadcast) {
   if (!pings.has(pid)) return;
   dropPing(pid);
   if (broadcast && team.on) {
-    publishAll('/k', await seal({ k: 'kx', id: team.me.id, name: team.me.name, pid, ts: Date.now() }), { qos: 1 });
+    if (MODE !== 'demo') publishAll('/k', await seal({ k: 'kx', id: team.me.id, name: team.me.name, pid, ts: Date.now() }), { qos: 1 });
     toast('Aviso quitado para todo el equipo');
   }
 }
@@ -3093,6 +3098,8 @@ if (MODE === 'artifact') {
   $('#team-join').hidden = true; $('#team-live').hidden = true; $('#team-artifact').hidden = false;
   const a = $('#team-url');
   if (/^https:\/\//.test(TEAM_URL)) { a.href = TEAM_URL; a.textContent = TEAM_URL.replace(/^https:\/\//, ''); } else { a.closest('p').hidden = true; }
+} else if (MODE === 'video' || MODE === 'demo') {
+  // el vídeo y la demo se inventan el equipo en local: no se entra en ningún equipo guardado ni se conecta a nada
 } else {
   const hashCode = (location.hash.match(/equipo=([A-Z0-9]{6,16})/i) || [])[1]?.toUpperCase();
   const saved = store.get('pv-team'), savedName = store.get('pv-name');
@@ -3118,6 +3125,15 @@ if (MODE === 'artifact') {
   });
 }
 window.__pv.team = team; window.__pv.amb = amb;
+// vídeo de presentación y demo: sus guiones (tools/video.js, tools/demo.js) mueven estas piezas del mapa
+if (MODE === 'video' || MODE === 'demo') {
+  window.__pvApi = { THREE, D, EV, ROWS, cam, camera, canvas, applyCam, overview, kick, setSaver, power, U,
+    gridToWorld, worldToGrid, cellName, edgeLabels, markers, target, selectCell, clearCell, setLines, setActs, pickLabel, cellInfo,
+    team, ROSTER, placeEntry, placeMe, renderTeamList, updatePill, openTeam, closeSheets,
+    showPing, dropPing, pings, PING, toast, onPing,
+    setNight: (v) => { nightTarget = v; }, unlockAudio, audioCtx, tone, squelch, amb, setAmb, startAmbient, boom, siren, duckAmbient,
+    pttEl, talkingEl, heli, renderer, composer, buildingAt, inWater, makeAvatar, dropAvatar, flyTo, initials };   // renderer/composer: el renderizador del MP4 sube la resolución del 3D
+}
 
 </script>
 
