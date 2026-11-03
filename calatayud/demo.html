@@ -3656,8 +3656,16 @@ body.dm-org .dm-switch button { height: 30px; padding: 0 10px; font-size: 12px; 
 .cp-hover { position: absolute; left: 0; top: 0; z-index: 20; pointer-events: none !important; max-width: 300px; padding: 8px 11px; border-radius: 10px; background: rgba(12, 13, 16, .96); border: 1px solid var(--line); box-shadow: 0 10px 28px rgba(0, 0, 0, .55); font-size: 14.5px; line-height: 1.3; color: var(--ash); }
 .cp-hover b { display: block; font-size: 15.5px; color: #fff; }
 .cp-hover em { display: block; margin-top: 3px; font-style: normal; font-size: 13px; color: #ffd21f; }
-.cp-btn kbd { padding: 1px 6px; border-radius: 5px; border: 1px solid currentColor; font-family: var(--f-mono); font-size: 11px; font-weight: 600; opacity: .7; }
-@media (pointer: coarse) { .cp-btn kbd { display: none; } }
+.cp-btn kbd, .cp-cx kbd { padding: 1px 6px; border-radius: 5px; border: 1px solid currentColor; font-family: var(--f-mono); font-size: 11px; font-weight: 600; opacity: .7; }
+@media (pointer: coarse) { .cp-btn kbd, .cp-cx kbd { display: none; } }
+
+/* las pruebas a las que mandar a los grupos elegidos, con su espera */
+.cp-bar .bt.tests { flex: 1 1 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+.cp-bar .bt.tests .cp-btn { max-width: none; }
+.cp-cx { position: absolute; top: 10px; right: 12px; height: 32px; padding: 0 10px; border-radius: 9px; border: 1px solid var(--line); background: none; font-size: 14px; font-weight: 700; color: var(--ash) !important; display: inline-flex; align-items: center; gap: 6px; }
+.cp-bar:has(.cp-cx) .tx { padding-right: 120px; }
+.cp-btn span { font-family: var(--f-mono); font-size: 12px; font-weight: 600; color: var(--ash); }
+.cp-bar .bt.tests .cp-btn.wide { grid-column: 1 / -1; }
 </style>
 <script>
 // Rutas por calles y plazas para los muñecos simulados del vídeo (video.js) y de la demo (demo.js): nunca a través de un edificio.
@@ -4057,14 +4065,13 @@ const totalAlive = () => GROUPS.reduce((a, g) => a + (g.st === 'out' ? 0 : g.ali
 const totalCaught = () => GROUPS.reduce((a, g) => a + g.caught, 0);
 
 // hordas de zombis: cada una con su jefe (lleva el walkie) y su zona
-const HDEF = [
-  { name: 'Horda Peña', jefe: 'Rubén', n: 8, at: [-110, -270], zr: 90, c0: 13, lc: 6 },
-  { name: 'Horda Mercado', jefe: 'Iratxe', n: 7, at: [80, -170], zr: 100, c0: 15, lc: 3 },
-  { name: 'Horda Sepulcro', jefe: 'Dani', n: 8, at: [290, -240], zr: 90, c0: 9, lc: 9 },
-  { name: 'Horda Santa Teresa', jefe: 'Paula', n: 6, at: [-230, -40], zr: 90, c0: 8, lc: 11 },
-  { name: 'Horda Fuerte', jefe: 'Kike', n: 9, at: [120, 40], zr: 110, c0: 10, lc: 5 },
-  { name: 'Horda Paseo', jefe: 'Noelia', n: 7, at: [380, 10], zr: 100, c0: 3, lc: 24 },
-];
+const JEFES = ['Rubén', 'Iratxe', 'Dani', 'Paula', 'Kike', 'Noelia', 'Toni', 'Vero', 'Chema', 'Yolanda', 'Fran', 'Maite', 'Luis', 'Sonia', 'Edu', 'Rosa', 'Quique', 'Nati'];
+const HDEF = [];   // 18 hordas (unos 135 zombis), separadas al menos 120 m
+for (let k = 0; HDEF.length < 18 && k < 2000; k++) {
+  const p = rndArea(); if (HDEF.some((d) => Math.hypot(d.at[0] - p.x, d.at[1] - p.z) < 120)) continue;
+  HDEF.push({ name: `Horda ${HDEF.length + 1}`, jefe: JEFES[HDEF.length], n: 6 + Math.floor(rnd() * 4), at: [p.x, p.z], zr: 70 + Math.floor(rnd() * 40), c0: 0, lc: 2 + Math.floor(rnd() * 24) });
+}
+for (let i = 0; i < 58; i++) HDEF[Math.floor(rnd() * HDEF.length)].c0++;
 const ZCOL = '#ff2d2d';
 const HORDES = HDEF.map((d, i) => {
   const p = NAV.freeNear(d.at[0], d.at[1]);
@@ -4256,7 +4263,7 @@ function stepGroup(g, h) {
       if (z.st === 'rest') continue;
       const d = Math.hypot(z.x - g.x, z.z - g.z);
       if (d < 60) g.lastScare = t;
-      if (d < 8 && Math.random() < h * 0.012 * z.int) { catchOne(g, z); return; }
+      if (d < 8 && Math.random() < h * 0.005 * z.int) { catchOne(g, z); return; }
       if (d < 36 && g.st !== 'flee' && Math.random() < h * 0.2) { flee(g, z); return; }
     }
   }
@@ -4283,12 +4290,12 @@ function stepHorde(z, h) {
     else if (t > z.repath) { z.repath = t + 5; goTo(z, { x: g.x, z: g.z }, 2.5); }
     return;
   }
-  if (z.path || z.pend) { if (z.st !== 'go' && t > z.look) { z.look = t + 8; const g = preyFor(z, z.st === 'wave' ? 90 : 55); if (g && Math.random() < 0.3 * z.int) { z.st = 'chase'; z.target = g; z.until = t + 60; z.repath = 0; } } return; }
+  if (z.path || z.pend) { if (z.st !== 'go' && t > z.look) { z.look = t + 8; const g = preyFor(z, z.st === 'wave' ? 90 : 55); if (g && Math.random() < 0.18 * z.int) { z.st = 'chase'; z.target = g; z.until = t + 60; z.repath = 0; } } return; }
   if (z.st === 'go') { z.st = z.goMode === 'ambush' ? 'ambush' : 'patrol'; z.home = { x: z.x, z: z.z }; log(`${z.name} llega a ${where(z)}`, 'z'); }
   if (t > z.look) {
     z.look = t + 8;
     const g = preyFor(z, z.st === 'ambush' ? 32 : z.st === 'wave' ? 100 : 65);
-    if (g && (z.st === 'ambush' || Math.random() < 0.3 * z.int)) { z.st = 'chase'; z.target = g; z.until = t + 60; z.repath = 0; return; }
+    if (g && (z.st === 'ambush' || Math.random() < 0.18 * z.int)) { z.st = 'chase'; z.target = g; z.until = t + 60; z.repath = 0; return; }
   }
   if (z.st === 'ambush' || t < z.next) return;
   z.next = t + 40 + Math.random() * 80;
@@ -4584,25 +4591,35 @@ function sentFx() { sfx([[988, 0.1, 0.02, 0.07], [1318, 0.12, 0.15, 0.07]]); try
 function radioFx() { sfx([[440, 0.07, 0, 0.06], [330, 0.1, 0.09, 0.06]]); }
 
 // ---------------------------------------------------------------- mover: a quién, adónde y enviar
-// st: idle (nada elegido), area (rodeando con el dedo), sel (grupos elegidos), dest (falta adónde), ok (listo para enviar)
+// st: idle (nada elegido), area (rodeando), sel (grupos elegidos: falta a qué prueba), dest (horda elegida: falta adónde), ok (listo)
+// A los grupos solo se les puede mandar a otra prueba (Íñigo, 4-nov: la organización no puede decirles «id a tal sitio»);
+// a una horda sí, a cualquier punto: se lo dicen a su jefe por el walkie.
 const MV = { st: 'idle', gs: [], z: null, dest: null, lasso: null };
 const GOING = [];   // lo enviado que aún va de camino
 const who = () => (MV.z ? `${MV.z.name} (${MV.z.n} zombis)` : `${pl(MV.gs.length, 'grupo', 'grupos')} · ${pl(people(MV.gs), 'persona', 'personas')}`);
 const destName = (d) => (d.test ? d.test.name : placeOf(d) || (cellAt(d.x, d.z) !== '—' ? `la celda ${cellAt(d.x, d.z)}` : 'el punto marcado'));
 const msgFor = (d) => (d.test ? `Id a ${d.test.name}: ${waitOf(d.test) ? `unos ${waitOf(d.test)} min de espera` : 'está sin cola'}` : destName(d) === 'el punto marcado' ? 'Id al punto marcado en el mapa' : `Id al punto marcado en el mapa (${destName(d)})`);
+// las pruebas a las que mejor pueden ir: menos espera y más cerca (sin la de la fila de la que salen)
+function bestTests() {
+  const c = selCenter(), from = MV.gs.length && MV.gs.every((g) => g.test && g.test === MV.gs[0].test) ? MV.gs[0].test : null;
+  return TESTS.filter((t) => t.st === 'abierta' && t !== from).sort((a, b) => (waitOf(a) + dist(c, a) / 70) - (waitOf(b) + dist(c, b) / 70)).slice(0, 4);
+}
 function selCenter() { const L = MV.z ? [MV.z] : MV.gs; return { x: L.reduce((a, g) => a + g.x, 0) / L.length, z: L.reduce((a, g) => a + g.z, 0) / L.length }; }
 function renderBar() {
   let h = '';
-  if (MV.st === 'idle') h = `<div class="tx"><b>¿A quién quieres mover?</b><small>Haz clic en un grupo, en una prueba (para mover su fila) o en una horda; o rodea a la gente arrastrando con Mayús pulsada</small></div>
-    <div class="bt">${btn(`${svg('lasso')}Rodear una zona`, 'mv-area', '', 'go')}${btn(`${svg('people')}Todos`, 'mv-all')}</div>`;
-  else if (MV.st === 'area') h = `<div class="tx"><b>Rodea a la gente que quieres mover</b><small>Arrastra el ratón alrededor de ellos</small></div>
+  if (MV.st === 'idle') h = `<div class="tx"><b>¿Qué grupos mandas a otra prueba?</b><small>Haz clic en una prueba para mover su fila, o en un grupo; para varios, arrastra con Mayús pulsada a su alrededor. Una horda se mueve haciendo clic en ella.</small></div>
+    <div class="bt">${btn(`${svg('lasso')}Rodear varios grupos`, 'mv-area', '', 'go')}</div>`;
+  else if (MV.st === 'area') h = `<div class="tx"><b>Rodea a los grupos que quieres mover</b><small>Arrastra el ratón alrededor de ellos</small></div>
     <div class="bt">${btn('Cancelar', 'mv-x')}</div>`;
-  else if (MV.st === 'sel' || MV.st === 'dest') h = `<div class="tx"><b>${who()}</b><small>${MV.st === 'sel' ? 'Haz clic en más grupos, o en adónde van: un punto del plano o una prueba' : 'Ahora haz clic en adónde van: un punto del plano o una prueba'}</small></div>
+  else if (MV.st === 'sel') h = `<button type="button" class="cp-cx" data-act="mv-x">Cancelar <kbd>Esc</kbd></button><div class="tx"><b>${who()}</b><small>¿A qué prueba van? Elige una aquí o haz clic en ella en el plano (clic en más grupos para añadirlos)</small></div>
+    <div class="bt tests">${MV.gs.length >= 3 ? btn(`${svg('send')}Repartirlos entre las que menos esperan`, 'mv-split', '', 'go wide') : ''}${bestTests().map((t) => btn(`${esc(t.name)}<span>${waitOf(t) ? `${waitOf(t)} min` : 'libre'}</span>`, 'mv-to', t.id)).join('')}</div>`;
+  else if (MV.st === 'dest') h = `<div class="tx"><b>${who()}</b><small>Ahora haz clic en adónde va</small></div>
     <div class="bt">${btn('Cancelar', 'mv-x')}</div>`;
   else if (MV.st === 'ok') {
-    const d = dist(selCenter(), MV.dest) * 1.3, m = Math.max(1, Math.round(d / (MV.z ? 2.2 : 1.8) / 60));
+    const d = dist(selCenter(), MV.dest) * 1.3, m = Math.max(1, Math.round(d / (MV.z ? 2.2 : 1.8) / 60)), t = MV.dest.test;
+    const after = t ? waitOf(t) + Math.round(MV.gs.length / t.cap * t.dur) : 0;
     h = `<div class="tx"><b>${who()} → ${esc(destName(MV.dest))}</b><small>A unos ${Math.round(d / 10) * 10} m: llegan en unos ${m} min.
-      ${MV.z ? `Se lo dices a ${MV.z.jefe}, su jefe, por el walkie.` : `Les llega al móvil: «${esc(msgFor(MV.dest))}».`}</small></div>
+      ${MV.z ? `Se lo dices a ${MV.z.jefe}, su jefe, por el walkie.` : `Allí la espera pasará de ${waitOf(t) ? `${waitOf(t)} min` : 'nada'} a unos ${after} min. Les llega al móvil: «${esc(msgFor(MV.dest))}».`}</small></div>
       <div class="bt">${btn(`${svg('send')}Enviar <kbd>Intro</kbd>`, 'mv-go', '', 'go')}${btn('Cancelar <kbd>Esc</kbd>', 'mv-x')}</div>`;
   }
   const b = q$('.cp-bar'); if (b.dataset.h !== h) { b.innerHTML = h; b.dataset.h = h; MAP.layout(); }
@@ -4610,7 +4627,7 @@ function renderBar() {
 }
 function selectGroups(gs, thenDest) {
   MV.gs = gs.filter((g) => g.st !== 'out' && g.st !== 'sos'); MV.z = null; MV.dest = null;
-  MV.st = MV.gs.length ? (thenDest ? 'dest' : 'sel') : 'idle';
+  MV.st = MV.gs.length ? 'sel' : 'idle';
   if (!MV.gs.length) say('Ahí no hay nadie a quien mover');
   renderBar();
 }
@@ -4621,14 +4638,31 @@ function sendMove() {
   const d = MV.dest, ids = MV.gs.map((g) => g.id);
   if (MV.z) { hordeGo(MV.z, d, 'patrol', true); GOING.unshift({ z: MV.z, d, name: destName(d), t0: CLK.t }); radioFx(); say(`Orden a ${MV.z.jefe} por el walkie: a ${destName(d)}`, 'ok'); }
   else {
-    if (d.test) {
-      for (const g of MV.gs) { leaveTest(g); goTest(g, d.test, true); }
-      sendNotice({ txt: msgFor(d), kind: 'imp', to: { type: 'groups', ids }, pt: { x: d.x, z: d.z }, quiet: true });
-    } else sendNotice({ txt: msgFor(d), kind: 'imp', to: { type: 'groups', ids }, pt: { x: d.x, z: d.z }, go: true, quiet: true });
+    for (const g of MV.gs) { leaveTest(g); goTest(g, d.test, true); }
+    sendNotice({ txt: msgFor(d), kind: 'imp', to: { type: 'groups', ids }, pt: { x: d.x, z: d.z }, quiet: true });
     GOING.unshift({ gs: MV.gs.slice(), d, name: destName(d), t0: CLK.t });
     say(`Enviado a ${pl(ids.length, 'grupo', 'grupos')}: van a ${destName(d)}`, 'ok'); sentFx();
   }
   if (GOING.length > 3) GOING.length = 3;
+  cancelMove();
+}
+// muchos grupos a la vez: cada uno a la prueba en la que antes empezaría (camino + espera, contando a los que ya van)
+function splitMove() {
+  const from = MV.gs.every((g) => g.test && g.test === MV.gs[0].test) ? MV.gs[0].test : null;
+  const open = TESTS.filter((t) => t.st === 'abierta' && t !== from); if (!open.length) return;
+  const extra = new Map(open.map((t) => [t, 0])), by = new Map();
+  for (const g of MV.gs.slice().sort((a, b) => a.id - b.id)) {
+    const t = open.reduce((a, b) => ((waitOf(b) + extra.get(b) / b.cap * b.dur + dist(g, b) / 70) < (waitOf(a) + extra.get(a) / a.cap * a.dur + dist(g, a) / 70) ? b : a));
+    extra.set(t, extra.get(t) + 1); if (!by.has(t)) by.set(t, []); by.get(t).push(g);
+  }
+  for (const [t, gs] of by) {
+    const d = { x: t.x, z: t.z, test: t };
+    sendNotice({ txt: msgFor(d), kind: 'imp', to: { type: 'groups', ids: gs.map((g) => g.id) }, pt: { x: t.x, z: t.z }, quiet: true });
+    for (const g of gs) { leaveTest(g); goTest(g, t, true); }
+    GOING.unshift({ gs, d, name: t.name, t0: CLK.t });
+  }
+  if (GOING.length > 3) GOING.length = 3;
+  say(`${pl(MV.gs.length, 'grupo repartido', 'grupos repartidos')}: ${[...by].map(([t, gs]) => `${gs.length} a ${t.name}`).join(', ')}`, 'ok'); sentFx();
   cancelMove();
 }
 // lo que va de camino: cuántos han llegado ya
@@ -4653,7 +4687,8 @@ function renderSOS() {
 }
 const ACT = {
   'mv-area': () => { cancelMove(); MV.st = 'area'; renderBar(); },
-  'mv-all': () => selectGroups(playing(), true),
+  'mv-split': () => splitMove(),
+  'mv-to': (a) => { const t = TESTS[+a - 1]; if (t) setDest(t, t); },
   'mv-x': () => cancelMove(),
   'mv-go': () => sendMove(),
   'sos-go': (a) => { const [i, s] = a.split('|').map(Number), inc = INCS.find((x) => x.id === i); assignInc(inc, STAFF[s - 1]); renderSOS(); MAP.fit([STAFF[s - 1], inc.g || inc]); },
@@ -4808,7 +4843,7 @@ const MAP = (() => {
       const L = MV.lasso; MV.lasso = null; ptr.delete(e.pointerId); gest = null; pinch = null;
       if (L.length < 4) return;
       const inL = (x, y) => { let c = false; for (let i = 0, j = L.length - 1; i < L.length; j = i++) { const [xi, yi] = L[i], [xj, yj] = L[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c; } return c; };
-      selectGroups(GROUPS.filter((g) => g.st !== 'out' && inL(sx(g.sig ? g.x : g.sx), sy(g.sig ? g.z : g.sz))), true);
+      selectGroups(GROUPS.filter((g) => g.st !== 'out' && inL(sx(g.sig ? g.x : g.sx), sy(g.sig ? g.z : g.sz))));
       return;
     }
     ptr.delete(e.pointerId); pinch = null; if (!ptr.size && gest && !gest.moved && performance.now() - gest.t0 < 450) { const r = cv.getBoundingClientRect(); tap(e.clientX - r.left, e.clientY - r.top); } if (!ptr.size) gest = null; };
@@ -4819,9 +4854,9 @@ const MAP = (() => {
     const inc = INCS.find((i) => i.st !== 'resuelta' && i.prio === 3 && near(i.g || i, 18)); if (inc) return `<b>SOS${inc.g ? ` · ${esc(gName(inc.g))}` : ''}</b>${esc(inc.txt)}`;
     if (LAY.hordes) { const z = HORDES.find((q) => near(q, 16)); if (z) return `<b>${z.name}</b>${z.n} zombis · jefe: ${z.jefe}${mv ? '<em>Clic para moverla</em>' : ''}`; }
     const t = TESTS.find((q) => near(q, 16));
-    if (t) return `<b>${t.name}</b>${t.st !== 'abierta' ? (t.st === 'bloqueada' ? `se abre a las ${hhmm(t.lock)}` : t.st) : t.queue.length ? `${pl(t.queue.length, 'grupo', 'grupos')} en la fila · unos ${waitOf(t)} min` : 'sin cola'}${t.st === 'abierta' ? (mv ? (t.queue.length ? '<em>Clic para mover su fila</em>' : '') : '<em>Clic para mandarlos aquí</em>') : ''}`;
+    if (t) return `<b>${t.name}</b>${t.st !== 'abierta' ? (t.st === 'bloqueada' ? `se abre a las ${hhmm(t.lock)}` : t.st) : t.queue.length ? `${pl(t.queue.length, 'grupo', 'grupos')} en la fila · unos ${waitOf(t)} min` : 'sin cola'}${t.st === 'abierta' ? (mv ? (t.queue.length ? '<em>Clic para mandar su fila a otra prueba</em>' : '') : MV.z ? '' : '<em>Clic para mandarlos aquí</em>') : ''}`;
     const s = STAFF.find((q) => (q.role !== 'mon' || q.st !== 'puesto') && near(q, 10)); if (s) return `<b>${s.name}</b>${ROLE[s.role].t}`;
-    const g = groupAt(px, py, 9); if (g) return `<b>${esc(gName(g))}</b>${pl(g.alive, 'persona', 'personas')} · ${esc(placeOf(g) || 'celda ' + cellAt(g.x, g.z))}${mv ? '<em>Clic para moverlos</em>' : MV.st === 'sel' ? `<em>Clic para ${MV.gs.includes(g) ? 'quitarlo' : 'añadirlo'}</em>` : ''}`;
+    const g = groupAt(px, py, 9); if (g) return `<b>${esc(gName(g))}</b>${pl(g.alive, 'persona', 'personas')} · ${esc(placeOf(g) || 'celda ' + cellAt(g.x, g.z))}${mv ? '<em>Clic para mandarlos a otra prueba</em>' : MV.st === 'sel' ? `<em>Clic para ${MV.gs.includes(g) ? 'quitarlo' : 'añadirlo'}</em>` : ''}`;
     return '';
   }
   cv.addEventListener('pointermove', (e) => {
@@ -4843,13 +4878,15 @@ const MAP = (() => {
     const x = wx(px), z = wz(py), near = (q, r) => Math.hypot(sx(q.x) - px, sy(q.z) - py) < r;
     const t = TESTS.find((q) => q.st === 'abierta' && near(q, 18));
     if (MV.st === 'area') return;
-    if (MV.st === 'sel' && !t) { const g = groupAt(px, py, 12); if (g) { MV.gs = MV.gs.includes(g) ? MV.gs.filter((o) => o !== g) : [...MV.gs, g]; if (!MV.gs.length) MV.st = 'idle'; renderBar(); return; } }
-    if (MV.st === 'sel' || MV.st === 'dest' || MV.st === 'ok') { setDest(NAV.freeNear(x, z), t); return; }
+    if ((MV.st === 'sel' || (MV.st === 'ok' && !MV.z)) && t) { setDest(t, t); return; }
+    if (MV.st === 'sel') { const g = groupAt(px, py, 12); if (g) { MV.gs = MV.gs.includes(g) ? MV.gs.filter((o) => o !== g) : [...MV.gs, g]; if (!MV.gs.length) MV.st = 'idle'; renderBar(); } else say('Elige una prueba: abajo o haciendo clic en ella en el plano'); return; }
+    if (MV.st === 'dest' || (MV.st === 'ok' && MV.z)) { setDest(NAV.freeNear(x, z)); return; }
+    if (MV.st === 'ok') return;
     const inc = INCS.find((i) => i.st !== 'resuelta' && i.prio === 3 && near(i.g || i, 20)); if (inc) { renderSOS(); return; }
     if (LAY.hordes) { const h = HORDES.find((q) => near(q, 18)); if (h) { selectHorde(h); return; } }
-    if (t) { if (t.queue.length) { selectGroups(t.queue.slice(), true); say(`La fila de ${t.name}: ${pl(t.queue.length, 'grupo', 'grupos')}`); } else say(`${t.name} no tiene cola ahora mismo`); return; }
-    const g = groupAt(px, py); if (g) { selectGroups([g], false); return; }
-    say('Toca un grupo, la fila de una prueba o una horda');
+    if (t) { if (t.queue.length) { selectGroups(t.queue.slice()); say(`La fila de ${t.name}: ${pl(t.queue.length, 'grupo', 'grupos')}`); } else say(`${t.name} no tiene cola ahora mismo`); return; }
+    const g = groupAt(px, py); if (g) { selectGroups([g]); return; }
+    say('Haz clic en una prueba, en un grupo o en una horda');
   }
   const pings = [];
   const ping = (p, r, col) => { pings.push({ x: p.x, z: p.z, r, col, t0: performance.now() }); };
@@ -5011,7 +5048,7 @@ const MAP = (() => {
       for (const [a, r, sp] of z.dots) { const aa = a + T * sp * (z.st === 'chase' ? 3 : 1); ctx.fillRect(X + Math.cos(aa) * r * ds - 1.3, Y + Math.sin(aa) * r * ds - 1.3, 2.6, 2.6); }
       ctx.save(); ctx.translate(X, Y); ctx.rotate(Math.PI / 4); ctx.fillStyle = z.st === 'rest' ? '#6b1d1a' : ZCOL; ctx.fillRect(-7.5, -7.5, 15, 15); ctx.lineWidth = 2; ctx.strokeStyle = isSel ? ORG : '#fff'; ctx.strokeRect(-7.5, -7.5, 15, 15); ctx.restore();
       ctx.font = '800 11px "Barlow Condensed", sans-serif'; ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(z.n), X, Y + 0.5); ctx.textAlign = 'left';
-      if (vw.sc > 1.1 || isSel) pill(z.name.replace('Horda ', ''), X + 12, Y, { col: '#ffb3ad', bd: 'rgba(255,45,45,.7)', size: 10 });
+      if (vw.sc > 1.1 || isSel) pill(z.name, X + 12, Y, { col: '#ffb3ad', bd: 'rgba(255,45,45,.7)', size: 10 });
     }
     // incidencias abiertas: lo más visible del plano
     for (const i of INCS) {
