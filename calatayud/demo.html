@@ -4003,23 +4003,6 @@ const pathEnd = (w) => (w.pend ? w.pend : w.path ? w.path[w.path.length - 1] : n
 const NAMES = ['Álvaro', 'Lucía', 'Pablo', 'María', 'Daniel', 'Paula', 'Javier', 'Laura', 'Sergio', 'Marta', 'Adrián', 'Elena', 'Diego', 'Sara', 'Iker', 'Carmen',
   'Rubén', 'Nuria', 'Jorge', 'Irene', 'Hugo', 'Alba', 'Mario', 'Andrea', 'Raúl', 'Claudia', 'Iván', 'Cristina', 'Óscar', 'Noelia', 'David', 'Julia', 'Héctor',
   'Lorena', 'Marcos', 'Ainhoa', 'Víctor', 'Silvia', 'Gonzalo', 'Patricia', 'Unai', 'Beatriz', 'Alejandro', 'Rocío', 'Samuel', 'Inés', 'Nicolás', 'Blanca', 'Rodrigo', 'Aitana'];
-function teamNames(n) {
-  const M = ['Lobos', 'Cuervos', 'Linces', 'Tejones', 'Halcones', 'Zorros', 'Búhos', 'Escorpiones', 'Vikingos', 'Cazadores', 'Fugitivos', 'Corredores', 'Rezagados',
-    'Inmunes', 'Exploradores', 'Murciélagos', 'Tiburones', 'Mapaches', 'Topos', 'Jabalíes', 'Gatos', 'Titanes', 'Supervivientes', 'Insomnes'];
-  const F = ['Panteras', 'Hienas', 'Ratas', 'Cobras', 'Avispas', 'Águilas', 'Leonas', 'Brujas', 'Sombras', 'Liebres', 'Momias', 'Arpías'];
-  const AM = ['Negros', 'Rojos', 'Salvajes', 'Nocturnos', 'Locos', 'Rápidos', 'Valientes', 'Perdidos', 'Furiosos', 'Silenciosos', 'del Jalón', 'de la Peña', 'de Calatayud', 'de Ateca', 'Hambrientos'];
-  const AF = ['Negras', 'Rojas', 'Salvajes', 'Nocturnas', 'Locas', 'Rápidas', 'Valientes', 'Perdidas', 'Furiosas', 'Silenciosas', 'del Jalón', 'de la Peña', 'de Calatayud', 'de Ateca', 'Hambrientas'];
-  const SP = ['Los Sin Batería', 'Equipo Croqueta', 'Peña El Cachirulo', 'Los Primos', 'Las Bilbilitanas', 'Los del Cuarto B', 'Calatayud Zombie Club', 'Los de Maluenda',
-    'Las Tapas Bravas', 'Los Insomnes de Terrer', 'Los Últimos de Filipinas', 'Las Mañas', 'Los Desperdigados', 'Cuadrilla La Dolores', 'Los de la Jota',
-    'Brigada Antizombi', 'Los Que No Corren', 'Las Chicas del Jalón', 'Los Becarios', 'Equipo Mañico', 'Los Cobardicas', 'Las Abuelas Ninja', 'Los Vecinos del Quinto'];
-  const out = new Set(SP);
-  const all = [...M.map((m) => `Los ${m}`), ...F.map((f) => `Las ${f}`)];
-  for (const m of M) for (const a of AM) all.push(`Los ${m} ${a}`);
-  for (const f of F) for (const a of AF) all.push(`Las ${f} ${a}`);
-  while (out.size < n) out.add(all[Math.floor(rnd() * all.length)]);
-  const arr = [...out]; for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; }
-  return arr.slice(0, n);
-}
 
 // pruebas, en plazas del casco (la última, El Búnker, se abre a las 23:20)
 const TDEF = [
@@ -4054,13 +4037,13 @@ const avgWait = () => { const o = TESTS.filter((t) => t.st === 'abierta'); retur
 
 // grupos
 const NG = 229;
-const GROUPS = teamNames(NG).map((name, i) => {
+const GROUPS = Array.from({ length: NG }, (_, i) => {   // solo con número: el nombre del grupo no le hace falta a la organización
   const n = pick([3, 4, 4, 5, 5, 5, 5, 6, 6, 7]), mem = [pick(NAMES)];
   while (mem.length < n) { const m = pick(NAMES); if (!mem.includes(m)) mem.push(m); }
-  return { id: i + 1, name, n, alive: n, mem, bat: Math.round(30 + rnd() * 70), drain: 0.0035 + rnd() * 0.003, x: 0, z: 0, sx: 0, sz: 0, path: null, pi: 0, pend: null, v: 1.3, cb: null,
+  return { id: i + 1, n, alive: n, mem, bat: Math.round(30 + rnd() * 70), drain: 0.0035 + rnd() * 0.003, x: 0, z: 0, sx: 0, sz: 0, path: null, pi: 0, pend: null, v: 1.3, cb: null,
     st: 'roam', test: null, slot: -1, pts: 0, done: [], caught: 0, lastMove: CLK.t, seen: CLK.t, sig: true, hold: 0, next: CLK.t + rnd() * 420, trail: [], trailT: 0, lastScare: CLK.t - rnd() * 1800 };
 });
-const gName = (g) => `#${g.id} ${g.name}`;
+const gName = (g) => `Grupo ${g.id}`;
 // color de cada grupo en el plano: por la calle, en una prueba, yendo adonde se le ha mandado o con un SOS
 function gCol(g) {
   if (g.st === 'sos') return '#ff3b30';
