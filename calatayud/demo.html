@@ -413,7 +413,7 @@ body.intro .tabbar { transform: translateY(110%); }
   .sheet, .readout { animation: none; }
 }
 /* vista 2D: el plano (P2). El 3D se para y se pinta #plan, que no recibe toques; arriba, una barra fija */
-#plan { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .25s, visibility 0s .25s; }
+#plan { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .7s, visibility 0s .7s; }
 body.plan2d #plan { opacity: 1; visibility: visible; transition: opacity .25s; }
 .plan-bar { display: none; position: absolute; left: 0; right: 0; top: 0; height: calc(env(safe-area-inset-top, 0px) + 52px); z-index: 7; background: rgba(11, 12, 15, .97); border-bottom: 1px solid var(--line); }
 body.plan2d .plan-bar { display: block; }
@@ -752,6 +752,9 @@ composer.addPass(new RenderPass(scene, camera)); composer.addPass(bloom); compos
 const NF = 6;
 const az = THREE.MathUtils.degToRad(D.moon.az), alt = THREE.MathUtils.degToRad(D.moon.alt);
 const MOON_DIR = new THREE.Vector3(Math.sin(az) * Math.cos(alt), Math.sin(alt), -Math.cos(az) * Math.cos(alt)).normalize();
+// al pasar del plano al 3D, una onda levanta la ciudad desde donde miras (con un pequeño rebote); ver riseTo()
+const RISE = /* glsl */`uniform vec3 uRise;
+float riseK(vec2 p){ float f = clamp((uRise.z - distance(p, uRise.xy)) / max(150.0, uRise.z * 0.5), 0.0, 1.0), g = f - 1.0; return max(0.012, 1.0 + 2.70158 * g * g * g + 1.70158 * g * g); }`;
 const U = {
   uTime: { value: 0 }, uNight: { value: 1 },
   uFire: { value: Array.from({ length: NF }, () => new THREE.Vector4(0, -5000, 0, 1)) },
@@ -769,6 +772,7 @@ const U = {
   uGridO: { value: new THREE.Vector2(G.x[2], G.z[2]) },
   uSel: { value: new THREE.Vector2(-99, -99) },
   uLine: { value: new THREE.Vector2(-99, -99) },   // columna y fila resaltadas por el buscador (-99 = ninguna)
+  uRise: { value: new THREE.Vector3(0, 0, 1e7) },   // la ciudad saliendo del plano: centro x, z y radio de la onda (1e7 = todo arriba)
   uHQ: { value: 1 },   // aspecto de alta calidad: menos niebla, más color y volumen (0 = el aspecto antiguo, más lechoso)
 };
 
@@ -827,6 +831,7 @@ function litMaterial({ head = '', transform = '', color = 'uColor', side = THREE
     uniforms: { ...U, uColor: { value: new THREE.Vector3(0.5, 0.5, 0.5) } },
     vertexShader: /* glsl */`
       uniform float uTime;
+      ${RISE}
       ${head}
       varying vec3 vW; varying vec3 vN; varying vec3 vCol; varying float vPart;
       void main(){
@@ -838,6 +843,7 @@ function litMaterial({ head = '', transform = '', color = 'uColor', side = THREE
         ${transform}
         vec4 w = M * vec4(p, 1.0);
         vW = w.xyz; vN = normalize(mat3(M) * nrm);
+        w.y *= riseK(w.xz);
         gl_Position = projectionMatrix * viewMatrix * w;
       }`,
     fragmentShader: COMMON + /* glsl */`
@@ -981,7 +987,7 @@ const groundGeo = TER ? terrainGeo(TER.nx, TER.nz, TER.x0, TER.z0, TER.ts, (i, j
 const ground = new THREE.Mesh(groundGeo, new THREE.ShaderMaterial({
   uniforms: U,
   polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 2,
-  vertexShader: `varying vec3 vW; varying vec3 vN; void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; vN = normal; gl_Position = projectionMatrix * viewMatrix * w; }`,
+  vertexShader: `${RISE} varying vec3 vW; varying vec3 vN; void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; vN = normal; w.y *= riseK(w.xz); gl_Position = projectionMatrix * viewMatrix * w; }`,
   fragmentShader: COMMON + /* glsl */`
     uniform float uGrid; uniform vec2 uSel;
     varying vec3 vW; varying vec3 vN;
@@ -1041,7 +1047,7 @@ if (TER) {
     return x > W4[0] + 25 && x < W4[2] - 25 && z > W4[1] + 25 && z < W4[3] - 25 ? h - 60 : h - 1.5;
   }, false), new THREE.ShaderMaterial({
     uniforms: U,
-    vertexShader: `varying vec3 vW; varying vec3 vN; void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; vN = normal; gl_Position = projectionMatrix * viewMatrix * w; }`,
+    vertexShader: `${RISE} varying vec3 vW; varying vec3 vN; void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; vN = normal; w.y *= riseK(w.xz); gl_Position = projectionMatrix * viewMatrix * w; }`,
     fragmentShader: COMMON + /* glsl */`
       varying vec3 vW; varying vec3 vN;
       void main(){
@@ -1135,8 +1141,8 @@ function buildBuildings() {
   geo.setAttribute('aB', new THREE.Float32BufferAttribute(wb.concat(rb), 4));
   const mat = new THREE.ShaderMaterial({
     uniforms: U, side: THREE.DoubleSide,
-    vertexShader: `attribute vec2 aUV; attribute vec4 aB; varying vec3 vW; varying vec3 vN; varying vec2 vUV; varying vec4 vB;
-      void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; vN = normal; vUV = aUV; vB = aB; gl_Position = projectionMatrix * viewMatrix * w; }`,
+    vertexShader: `${RISE} attribute vec2 aUV; attribute vec4 aB; varying vec3 vW; varying vec3 vN; varying vec2 vUV; varying vec4 vB;
+      void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; vN = normal; vUV = aUV; vB = aB; w.y *= riseK(w.xz); gl_Position = projectionMatrix * viewMatrix * w; }`,
     fragmentShader: COMMON + /* glsl */`
       varying vec3 vW; varying vec3 vN; varying vec2 vUV; varying vec4 vB;
       // enlucidos de pueblo aragonés y ladrillo (aleatorio por edificio)
@@ -1378,8 +1384,8 @@ function buildMonuments() {
   geo.setAttribute('aM', new THREE.Float32BufferAttribute(A, 4));
   const mat = new THREE.ShaderMaterial({
     uniforms: U, side: THREE.DoubleSide,
-    vertexShader: `attribute vec2 aUV; attribute vec4 aM; varying vec3 vW; varying vec3 vN; varying vec2 vUV; varying vec4 vM;
-      void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; vN = normal; vUV = aUV; vM = aM; gl_Position = projectionMatrix * viewMatrix * w; }`,
+    vertexShader: `${RISE} attribute vec2 aUV; attribute vec4 aM; varying vec3 vW; varying vec3 vN; varying vec2 vUV; varying vec4 vM;
+      void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; vN = normal; vUV = aUV; vM = aM; w.y *= riseK(w.xz); gl_Position = projectionMatrix * viewMatrix * w; }`,
     fragmentShader: COMMON + /* glsl */`
       varying vec3 vW; varying vec3 vN; varying vec2 vUV; varying vec4 vM;
       void main(){
@@ -1452,7 +1458,7 @@ buildMonuments();
   geo.translate(0, 0.35, 0);
   const mat = new THREE.ShaderMaterial({
     uniforms: U,
-    vertexShader: `varying vec3 vW; void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
+    vertexShader: `${RISE} varying vec3 vW; void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; w.y *= riseK(w.xz); gl_Position = projectionMatrix * viewMatrix * w; }`,
     fragmentShader: COMMON + /* glsl */`
       varying vec3 vW;
       void main(){
@@ -1699,6 +1705,7 @@ function particleMesh({ count, vert, frag, blending, order }) {
 const BILL = /* glsl */`
   attribute vec4 aBase; attribute vec4 aP;
   uniform float uTime;
+  ${RISE}
   vec3 camRight(){ return vec3(viewMatrix[0][0], viewMatrix[1][0], viewMatrix[2][0]); }
   vec3 camUp(){ return vec3(viewMatrix[0][1], viewMatrix[1][1], viewMatrix[2][1]); }
   float h1(float n){ return fract(sin(n * 127.1) * 43758.5453); }
@@ -1728,7 +1735,7 @@ const fxGroup = new THREE.Group(); scene.add(fxGroup);
         vec2 q = mat2(cos(rot), -sin(rot), sin(rot), cos(rot)) * position.xy;
         vec3 w = c + (camRight() * q.x + camUp() * q.y) * size;
         vUv = uv; vAge = age; vSeed = aP.x; vW = w;
-        gl_Position = projectionMatrix * viewMatrix * vec4(w, 1.0);
+        gl_Position = projectionMatrix * viewMatrix * vec4(aBase.xyz + (w - aBase.xyz) * riseK(aBase.xz), 1.0);
       }`,
     frag: NOISE + /* glsl */`
       varying vec2 vUv; varying float vAge; varying float vSeed; varying vec3 vW;
@@ -1762,7 +1769,7 @@ const fxGroup = new THREE.Group(); scene.add(fxGroup);
         float size = (4.5 * s) * (1.0 - age * 0.7) * (0.7 + aP.z);
         vec3 w = c + (camRight() * position.x + camUp() * position.y * 1.35) * size;
         vUv = uv; vAge = age; vSeed = aP.x;
-        gl_Position = projectionMatrix * viewMatrix * vec4(w, 1.0);
+        gl_Position = projectionMatrix * viewMatrix * vec4(aBase.xyz + (w - aBase.xyz) * riseK(aBase.xz), 1.0);
       }`,
     frag: NOISE + /* glsl */`
       varying vec2 vUv; varying float vAge; varying float vSeed;
@@ -1794,7 +1801,7 @@ const fxGroup = new THREE.Group(); scene.add(fxGroup);
         float size = 0.55 + aP.z;
         vec3 w = c + (camRight() * position.x + camUp() * position.y) * size;
         vA = (1.0 - age) * step(0.02, age); vUv = uv;
-        gl_Position = projectionMatrix * viewMatrix * vec4(w, 1.0);
+        gl_Position = projectionMatrix * viewMatrix * vec4(aBase.xyz + (w - aBase.xyz) * riseK(aBase.xz), 1.0);
       }`,
     frag: `varying float vA; varying vec2 vUv; void main(){ float a = smoothstep(0.5, 0.0, length(vUv - 0.5)); gl_FragColor = vec4(vec3(1.0, 0.55, 0.15) * a * vA * 1.4, 1.0); }`,
   });
@@ -1820,7 +1827,7 @@ let glowMesh;
         k *= mix(day, 1.0, uNight);
         vec3 w = aBase.xyz + (camRight() * position.x + camUp() * position.y) * aBase.w * (0.6 + 0.4 * k);
         vUv = uv; vC = aC * k;
-        gl_Position = projectionMatrix * viewMatrix * vec4(w, 1.0);
+        gl_Position = projectionMatrix * viewMatrix * vec4(aBase.xyz + (w - aBase.xyz) * riseK(aBase.xz), 1.0);
       }`,
     frag: `varying vec2 vUv; varying vec3 vC; void main(){ float d = length(vUv - 0.5) * 2.0; float a = exp(-d * d * 7.0) + 0.25 * exp(-d * d * 1.6); gl_FragColor = vec4(vC * a * smoothstep(1.0, 0.85, d), 1.0); }`,
   });
@@ -2273,9 +2280,25 @@ function overview(instant = false, dur = 1600) {
 }
 function focusMarker(mk) { flyTo(new THREE.Vector3(mk.x, 0, mk.z), 150, 55); }
 function set2D(v) { is2D = v; $('#btn-2d').setAttribute('aria-pressed', String(v)); $('#lbl-2d').textContent = $('#btn-2dq').textContent = v ? '3D' : '2D'; }
+// la transición: el plano se funde con la ciudad vista desde arriba, aún plana, y una onda la levanta mientras la cámara baja; a la vuelta, se hunde
+let riseAn = null;
+function riseTo(on, dur, wait = 0) {
+  riseAn = null;
+  if (reduceMotion) { U.uRise.value.z = on ? 1e7 : 0; return; }
+  U.uRise.value.x = cam.target.x; U.uRise.value.y = cam.target.z;
+  if (on) U.uRise.value.z = 0;
+  riseAn = { t0: performance.now() + wait, dur, on };
+}
+function updateRise(now) {
+  if (!riseAn) return;
+  const k = THREE.MathUtils.clamp((now - riseAn.t0) / riseAn.dur, 0, 1);
+  const a = riseAn.on ? k : 1 - k;   // el pueblo (900 m) se levanta en las tres cuartas partes del tiempo; lo que queda, hasta 9 km, es para los montes
+  U.uRise.value.z = k >= 1 ? (riseAn.on ? 1e7 : 0) : a < 0.75 ? 20 + 880 * Math.pow(a / 0.75, 1.5) : 900 * Math.pow(10, (a - 0.75) * 4);
+  if (k >= 1) riseAn = null;
+}
 function toggle2D() {
-  if (!is2D) { set2D(true); flyTo(cam.target, Math.max(cam.dist, 500), 0, 0, 800); }
-  else { set2D(false); P2.show(false); flyTo(cam.target, null, 50, null); }
+  if (!is2D) { set2D(true); riseTo(false, 800); flyTo(cam.target, Math.max(cam.dist, 500), 0, 0, 800); }
+  else { set2D(false); P2.show(false); riseTo(true, 3000, 500); flyTo(cam.target, Math.min(cam.dist, 420), 60, 0.45, 3400); }   // la cámara empieza a bajar antes, para ver subir los edificios de lado
 }
 $('#btn-2d').addEventListener('click', toggle2D);
 $('#btn-2dq').addEventListener('click', toggle2D);
@@ -2629,7 +2652,7 @@ const P2 = (() => {
     'Cúpula de San Juan el Real': 'San Juan el Real', 'Plaza de toros': 'Plaza de toros', 'Castillo Mayor': 'Castillo Mayor', 'Castillo del Reloj': 'Castillo del Reloj', 'Castillo de Doña Martina': 'Doña Martina', 'Torre Mocha': 'Torre Mocha' };
   const MARKS = (D.monuments || []).filter((m) => MN[m.n]).map((m) => ({ n: MN[m.n], x: m.x ?? m.tw[0][0], z: m.z ?? m.tw[0][1] }));
   function resize() {
-    DPR = Math.min(devicePixelRatio || 1, 2); W = canvas.clientWidth; H = canvas.clientHeight;
+    DPR = Math.min(devicePixelRatio || 1, window.__pvPlanDpr || 2); W = canvas.clientWidth; H = canvas.clientHeight;
     cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
     BAR = $('.plan-bar').getBoundingClientRect().height; BOT = H - $('.tabbar').getBoundingClientRect().top + canvas.getBoundingClientRect().top;
   }
@@ -2774,6 +2797,7 @@ function frame() {
   const real = Math.min(clock.getDelta(), 0.1);
   const dt = active || !power.saver ? real : 0;   // con ahorro y sin tocar nada, el ambiente se queda quieto
   t += dt;
+  updateRise(now);
   U.uTime.value = t;
   U.uNight.value += (nightTarget - U.uNight.value) * Math.min(1, dt * 2.5);
   U.uGrid.value += (gridTarget - U.uGrid.value) * Math.min(1, dt * 5);
@@ -2847,7 +2871,7 @@ function enterApp() {
   $('#ly-saver').checked = v; setSaver(v);
 }
 requestAnimationFrame(frame);
-window.__pv = { camera, cam, flyTo, overview, U, scene, power, busy, bloom };
+window.__pv = { camera, cam, flyTo, overview, toggle2D, get is2D() { return is2D; }, U, scene, power, busy, bloom };
 
 // ================================================================ MODO EQUIPO: GPS en directo + walkie-talkie + avisos
 // Transporte: MQTT sobre WebSocket (servidores públicos, en paralelo y con deduplicación).
@@ -5349,7 +5373,7 @@ setTimeout(() => {
   tip('Tu grupo, en directo. Toca una casilla del mapa y prueba <b>¿Avisar aquí?</b> → <b>Reunión</b>. Arriba, <b>Organización</b>: avisos a los grupos y zombis.');
   startPlayerLife();
 }, 3600);
-window.__demo = { setView, CLK, SIM, GROUPS, TESTS, HORDES, STAFF, INCS, ACT, MAP, MV, GOING, pickTest, pickWho, pickHorde, setDest, sendMove, simInc };
+window.__demo = { crew, crewAnchor, place, walk, setView, CLK, SIM, GROUPS, TESTS, HORDES, STAFF, INCS, ACT, MAP, MV, GOING, pickTest, pickWho, pickHorde, setDest, sendMove, simInc };
 </script>
 </body>
 </html>
