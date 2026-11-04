@@ -2868,7 +2868,7 @@ function enterApp() {
   }
   setTimeout(() => document.body.classList.remove('intro'), reduceMotion ? 0 : 1500);
   kick(3500);
-  if (!hintSeen) setTimeout(() => { showHint(); setTimeout(hideHint, 9000); }, reduceMotion ? 300 : 3200);
+  if (!hintSeen && !window.__pvStart) setTimeout(() => { showHint(); setTimeout(hideHint, 9000); }, reduceMotion ? 300 : 3200);   // en la demo no: habla de girar e inclinar, y empieza en el plano
 }
 ['pointerdown', 'pointermove', 'wheel', 'keydown'].forEach((ev) => window.addEventListener(ev, () => kick(), { passive: true, capture: true }));
 {
