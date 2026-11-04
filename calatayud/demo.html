@@ -4394,7 +4394,7 @@ const JEFES = ['Rubén', 'Iratxe', 'Dani', 'Paula', 'Kike', 'Noelia', 'Toni', 'V
 const HDEF = [];   // 18 hordas (unos 135 zombis), separadas al menos 120 m
 for (let k = 0; HDEF.length < 18 && k < 2000; k++) {
   const p = rndArea(); if (HDEF.some((d) => Math.hypot(d.at[0] - p.x, d.at[1] - p.z) < 120)) continue;
-  HDEF.push({ name: `Escuadra ${HDEF.length + 1}`, jefe: JEFES[HDEF.length], n: 6 + Math.floor(rnd() * 4), at: [p.x, p.z], zr: 70 + Math.floor(rnd() * 40), c0: 0, lc: 2 + Math.floor(rnd() * 24) });
+  HDEF.push({ name: `Zombis ${HDEF.length + 1}`, jefe: JEFES[HDEF.length], n: 6 + Math.floor(rnd() * 4), at: [p.x, p.z], zr: 70 + Math.floor(rnd() * 40), c0: 0, lc: 2 + Math.floor(rnd() * 24) });
 }
 for (let i = 0; i < 58; i++) HDEF[Math.floor(rnd() * HDEF.length)].c0++;
 const ZCOL = '#ff2d2d';
@@ -4497,7 +4497,7 @@ function mkInc(ty, p, g, txt, t0, extra = {}) {
   n('¡Empieza la noche! Suerte, y no os separéis del grupo', at(21, 50), 'info', 0.97);
   NOTICES.sort((a, b) => b.t - a.t);
   log('Las pruebas El Taller y La Farmacia, sin cola: aviso a todos', 'n');
-  log('Escuadra 3 atrapa a 2 de #87', 'z');
+  log('Zombis 3 atrapan a 2 de #87', 'z');
   log('Lucía resuelve la lesión de la calle Gotor', 'ok');
 }
 // guion de la noche: lo que va pasando a su hora (se lanza solo o a mano)
@@ -4558,7 +4558,7 @@ function flee(g, z) {
 }
 function catchOne(g, z) {
   g.alive--; g.caught++; z.catches++; z.lastCatch = CLK.t;
-  log(`${z.name} atrapa a 1 de ${gName(g)}`, 'z');
+  log(`${z.name} atrapan a 1 de ${gName(g)}`, 'z');
   if (g.alive <= 0) { leaveTest(g); g.st = 'out'; g.sig = true; goTo(g, rndFree(P.checkin, 4, 26), 1.3); log(`${gName(g)} se queda sin supervivientes`, 'z'); }
   else flee(g, z);
 }
@@ -4608,7 +4608,7 @@ function stepHorde(z, h) {
   const t = CLK.t;
   moveW(z, h);
   if (z.waveEnd && t > z.waveEnd) { z.waveEnd = 0; z.int = z.int0 ?? 1; if (z.st === 'wave') { z.st = 'patrol'; z.home = { x: z.x, z: z.z }; } }
-  if (z.st === 'rest') { if (!z.path && !z.pend && t >= z.until) { z.st = 'patrol'; z.next = t; log(`${z.name} vuelve al juego`, 'z'); } return; }
+  if (z.st === 'rest') { if (!z.path && !z.pend && t >= z.until) { z.st = 'patrol'; z.next = t; log(`${z.name} vuelven al juego`, 'z'); } return; }
   if (z.st === 'chase') {
     const g = z.target;
     if (!g || g.st === 'out' || g.st === 'queue' || g.st === 'inTest' || safeAt(g) || t > z.until) { z.st = z.waveEnd ? 'wave' : 'patrol'; z.target = null; stopW(z); z.next = t + 10; z.look = t + 25; }
@@ -4616,7 +4616,7 @@ function stepHorde(z, h) {
     return;
   }
   if (z.path || z.pend) { if (z.st !== 'go' && t > z.look) { z.look = t + 8; const g = preyFor(z, z.st === 'wave' ? 90 : 55); if (g && Math.random() < 0.18 * z.int) { z.st = 'chase'; z.target = g; z.until = t + 60; z.repath = 0; } } return; }
-  if (z.st === 'go') { z.st = z.goMode === 'ambush' ? 'ambush' : 'patrol'; z.home = { x: z.x, z: z.z }; log(`${z.name} llega a ${where(z)}`, 'z'); }
+  if (z.st === 'go') { z.st = z.goMode === 'ambush' ? 'ambush' : 'patrol'; z.home = { x: z.x, z: z.z }; log(`${z.name} llegan a ${where(z)}`, 'z'); }
   if (t > z.look) {
     z.look = t + 8;
     const g = preyFor(z, z.st === 'ambush' ? 32 : z.st === 'wave' ? 100 : 65);
@@ -4924,7 +4924,7 @@ const nearGroups = (t) => GROUPS.filter((g) => canGo(g, t) && dist(g, t) < WALK)
 const longQueue = (t) => TESTS.filter((q) => q !== t && q.st === 'abierta' && q.queue.length >= 2 && waitOf(q) > waitOf(t) + 5).sort((a, b) => waitOf(b) - waitOf(a))[0];
 function renderBar() {
   let h = '';
-  if (MV.st === 'idle') h = `<div class="tx"><b>¿Qué prueba tiene hueco?</b><small>Elige una para avisar a los grupos, aquí o en el plano. Para mover zombis, haz clic en una escuadra.</small></div>
+  if (MV.st === 'idle') h = `<div class="tx"><b>¿Qué prueba tiene hueco?</b><small>Elige una para avisar a los grupos, aquí o en el plano. Para mover zombis, haz clic en unos zombis.</small></div>
     <div class="bt tests">${freeTests().map((t) => btn(`${esc(t.name)}<span>${waitOf(t) ? `${waitOf(t)} min` : 'libre'}</span>`, 'mv-t', t.id)).join('')}</div>`;
   else if (MV.st === 'who') {
     const n = nearGroups(MV.t), q = longQueue(MV.t);
@@ -4934,7 +4934,7 @@ function renderBar() {
     <div class="bt">${btn('Cancelar', 'mv-x')}</div>`;
   else if (MV.st === 'ok') h = `<div class="tx"><b>«${esc(msgFor(MV.t))}»</b><small>Para ${MV.who}: ${pl(MV.gs.length, 'grupo', 'grupos')}, ${pl(people(MV.gs), 'persona', 'personas')}. Les llega al móvil con la prueba marcada en su mapa; cada grupo decide si va.</small></div>
     <div class="bt">${btn(`${svg('send')}Enviar aviso <kbd>Intro</kbd>`, 'mv-go', '', 'go')}${btn('Cancelar <kbd>Esc</kbd>', 'mv-x')}</div>`;
-  else if (MV.st === 'zdest') h = `<div class="tx"><b>${MV.z.name} · ${MV.z.n} zombis</b><small>Haz clic hacia dónde quieres que se vaya</small></div>
+  else if (MV.st === 'zdest') h = `<div class="tx"><b>${MV.z.n} zombis</b><small>Haz clic hacia dónde quieres que se vaya</small></div>
     <div class="bt">${btn('Cancelar', 'mv-x')}</div>`;
   else if (MV.st === 'zok') h = `<div class="tx"><b>${MV.z.name} → ${esc(zName(MV.dest))}</b><small>Se lo dices a ${MV.z.jefe}, su jefe, por el walkie: «Moveos hacia ${esc(zName(MV.dest))}».</small></div>
     <div class="bt">${btn(`${svg('send')}Decírselo <kbd>Intro</kbd>`, 'mv-go', '', 'go')}${btn('Cancelar <kbd>Esc</kbd>', 'mv-x')}</div>`;
@@ -5105,7 +5105,7 @@ const MAP = (() => {
   function hoverAt(px, py) {
     const near = (q, r) => Math.hypot(sx(q.x) - px, sy(q.z) - py) < r, mv = MV.st === 'idle';
     const inc = INCS.find((i) => i.st !== 'resuelta' && i.prio === 3 && near(i.g || i, 18)); if (inc) return `<b>SOS${inc.g ? ` · ${esc(gName(inc.g))}` : ''}</b>${esc(inc.txt)}`;
-    if (LAY.hordes) { const z = HORDES.find((q) => near(q, 16)); if (z) return `<b>${z.name}</b>${z.n} zombis · jefe: ${z.jefe}${mv ? '<em>Clic para mandarla a otro lado</em>' : ''}`; }
+    if (LAY.hordes) { const z = HORDES.find((q) => near(q, 16)); if (z) return `<b>${z.n} zombis</b>Jefe: ${z.jefe}${mv ? '<em>Clic para mandarlos a otro lado</em>' : ''}`; }
     const t = TESTS.find((q) => near(q, 16));
     if (t) return `<b>${t.name}</b>${t.st !== 'abierta' ? (t.st === 'bloqueada' ? `se abre a las ${hhmm(t.lock)}` : t.st) : t.queue.length ? `${pl(t.queue.length, 'grupo', 'grupos')} en la fila · unos ${waitOf(t)} min` : 'sin cola'}${t.st === 'abierta' && !MV.z ? '<em>Clic para avisar de esta prueba</em>' : ''}`;
     const s = STAFF.find((q) => (q.role !== 'mon' || q.st !== 'puesto') && near(q, 10)); if (s) return `<b>${s.name}</b>${ROLE[s.role].t}`;
