@@ -4100,8 +4100,8 @@ function around(c, r0, r1) {
 
 // ---------------------------------------------------------------- vista de jugador: tu grupo (simulado)
 const TEAM = [
-  { name: 'Tú', col: '#00e5ff', at: [-40, 30] }, { name: 'Laura', col: '#ff9f1c', at: [-52, 18] }, { name: 'Marcos', col: '#c77dff', at: [-28, 16] },
-  { name: 'Sara', col: '#7bf1a8', at: [-54, 42] }, { name: 'Hugo', col: '#ff4d9d', at: [-26, 44] },
+  { name: 'Tú', col: '#00e5ff', at: [-40, 30] }, { name: 'Laura', col: '#ff9f1c', at: [-70, -162] }, { name: 'Marcos', col: '#c77dff', at: [-24, -156] },
+  { name: 'Sara', col: '#7bf1a8', at: [-52, -146] }, { name: 'Hugo', col: '#ff4d9d', at: [-74, -182] },
 ];
 V.ROSTER.splice(0, V.ROSTER.length, ...TEAM.map(({ name, col }) => ({ name, col })));   // la lista de equipo enseña a estos cinco
 const T = V.team;
@@ -4111,7 +4111,7 @@ $('#team-join').hidden = true; $('#team-live').hidden = false;
 $('#tl-status').textContent = 'Demo · grupo simulado, sin conexión'; $('#tl-status').classList.remove('warn');
 $('#radio').hidden = true; $('#btn-me').hidden = false; document.body.classList.add('in-team'); $('#btn-team').classList.add('live');
 let view = 'player';
-const crewAnchor = { x: -40, z: 30 };   // plaza Darío Pérez
+const crewAnchor = { x: -48, z: -170 };   // tu grupo, en la cola de La Cripta; tú, lejos, en la plaza Darío Pérez
 const crew = TEAM.map((t, i) => {
   const p = nearFree(t.at[0], t.at[1]);
   const w = { name: t.name, col: t.col, x: p.x, z: p.z, me: i === 0, path: null, pi: 0, v: 1.4, next: performance.now() + 2500 + i * 1700, r: 26 };
@@ -4129,7 +4129,8 @@ function place(w) {
 }
 crew.forEach(place);
 V.updatePill();
-window.__pvStart = () => window.__pv.start2D(crew[0].x, crew[0].z, 340);   // la demo empieza en el plano
+const midView = () => ({ x: (crew[0].x + crewAnchor.x) / 2, z: (crew[0].z + crewAnchor.z) / 2 + 15 });   // tú y tu grupo a la vez
+window.__pvStart = () => { const m = midView(); window.__pv.start2D(m.x, m.z, 440); };   // la demo empieza en el plano
 // pasean un poco alrededor del grupo
 function wander(w, now) {
   if (w.me || w.path || now < w.next) return;
@@ -5400,7 +5401,7 @@ function setView(v) {
   if (v === 'org') ORGV.enter();
   else {
     V.kick(1500);
-    const me = crew[0]; V.flyTo(new THREE.Vector3(me.x, 0, me.z), 300, 50);
+    const m = midView(); V.flyTo(new THREE.Vector3(m.x, 0, m.z), 440, 50);
     tip('Tu grupo, en directo. Toca una casilla del mapa y prueba <b>¿Avisar aquí?</b> → <b>Reunión</b>.');
   }
   crew.forEach(place);
