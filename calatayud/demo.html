@@ -3860,6 +3860,22 @@ body.dm .hud { bottom: calc(var(--tab-h) + 80px); }
 @media (max-width: 380px) {
   .dm-switch button { padding: 0 11px; font-size: 12.5px; }
 }
+
+/* SOS del jugador, debajo del botón 2D/3D; lo recibe la organización */
+.dm-sos { position: absolute; right: var(--gap-xr); top: calc(var(--gap-t) + 302px); z-index: 16; }
+body.plan2d .dm-sos { top: calc(env(safe-area-inset-top, 0px) + 258px); }
+body.dm-org .dm-sos { display: none; }
+.dm-sos-b { display: block; width: 46px; height: 46px; padding: 0; border-radius: 50%; border: 2px solid rgba(255, 255, 255, .55); background: #d9271d; color: #fff;
+  font-family: var(--f-mono); font-size: 13px; font-weight: 700; letter-spacing: .02em; cursor: pointer; box-shadow: 0 4px 14px rgba(0, 0, 0, .5); }
+.dm-sos-c { position: absolute; right: calc(100% + 10px); top: -8px; width: min(270px, calc(100vw - 90px)); padding: 12px 14px; border-radius: 14px; box-sizing: border-box;
+  background: rgba(12, 14, 19, .96); border: 1px solid #ff3b30; color: var(--bone); font-size: 14px; line-height: 1.35; }
+.dm-sos-c b { color: #fff; }
+.dm-sos-c > b { display: block; font-size: 16px; }
+.dm-sos-c p { margin: 4px 0 0; }
+.dm-sos-c small { display: block; margin-top: 6px; opacity: .8; }
+.dm-sos-c .bt { display: flex; gap: 8px; margin-top: 10px; }
+.dm-sos-c .bt button { flex: 1; height: 40px; border-radius: 10px; border: 1px solid var(--line); background: transparent; color: var(--bone); font: inherit; font-weight: 600; cursor: pointer; }
+.dm-sos-c .bt [data-s="go"] { background: #d9271d; border-color: #d9271d; color: #fff; }
 /* ================================================================ vista de organización de la demo (tools/org.js)
    El plano 2D a pantalla completa, arriba la hora y cuántos juegan, y abajo una sola barra para mover a la gente:
    a quién, adónde y enviar. Mismas letras y colores que la app. */
@@ -5335,6 +5351,34 @@ function drawTests(now) {
   }
 }
 
+// ---------------------------------------------------------------- vista de jugador: SOS. Le llega a la organización, en su plano (org.js)
+const sosEl = document.createElement('div'); sosEl.className = 'dm-sos';
+sosEl.innerHTML = '<button type="button" class="dm-sos-b" aria-label="Pedir ayuda a la organización">SOS</button><div class="dm-sos-c" role="status" hidden></div>';
+$('#app').append(sosEl);
+const sosC = sosEl.querySelector('.dm-sos-c');
+let mySos = null, sosTxt = '';
+function sosShow(h) { if (h === sosTxt) return; sosTxt = h; sosC.innerHTML = h; sosC.hidden = !h; }
+sosEl.querySelector('.dm-sos-b').addEventListener('click', () => {
+  if (mySos) return;
+  sosShow(sosTxt ? '' : '<b>¿Necesitas ayuda?</b><p>La organización verá dónde estás y mandará a alguien.</p><div class="bt"><button type="button" data-s="go">Pedir ayuda</button><button type="button" data-s="no">Cancelar</button></div>');
+});
+sosC.addEventListener('click', (e) => {
+  const k = e.target.closest('[data-s]')?.dataset.s; if (!k) return;
+  if (k === 'no') { sosShow(''); return; }
+  const me = crew[0], g = GROUPS[37];   // en la noche simulada, tu grupo es el 38
+  g.x = me.x; g.z = me.z;
+  mySos = newInc('lesion', { x: me.x, z: me.z }, g, 'Ha pulsado el SOS en su móvil');
+  tipOff = true; tipEl.hidden = true;
+});
+function sosTick() {
+  const i = mySos; if (!i) return;
+  if (i.st === 'resuelta') { mySos = null; sosShow(''); return; }
+  const s = i.staff;
+  sosShow(!s ? '<b>Ayuda pedida</b><p>La organización ya sabe dónde estás. Quédate ahí.</p><small>En la demo: pasa a <b>Organización</b>, arriba.</small>'
+    : i.st === 'asignada' ? `<b>${s.name} va para allá</b><p>A ${Math.round(dist(s, crew[0]) / 10) * 10} m. Quédate donde estás.</p>`
+    : `<b>${s.name} ya está contigo</b>`);
+}
+
 // ---------------------------------------------------------------- cambiar de vista
 function setView(v) {
   view = v;
@@ -5361,7 +5405,7 @@ function tick(now) {
   for (const w of crew) { if (step(w, dt)) moved = true; wander(w, now); place(w); }
   simTick(dt);   // la noche de la organización sigue aunque se mire la vista de jugador
   if (view === 'org') ORGV.frame(now);
-  else { drawTests(now); if (moved) V.kick(150); }
+  else { drawTests(now); sosTick(); if (moved) V.kick(150); }
   tipEl.hidden = tipOff || !$('#hud').hidden || !tipEl.querySelector('span').innerHTML || view === 'org';
 }
 requestAnimationFrame(tick);
