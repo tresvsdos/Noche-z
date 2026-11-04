@@ -411,12 +411,30 @@ body.intro .tabbar { transform: translateY(110%); }
   .brand, .navpad, .tabbar { transition: none; }
   .sheet, .readout { animation: none; }
 }
+/* vista 2D: el plano (P2). El 3D se para y se pinta #plan, que no recibe toques; arriba, una barra fija */
+#plan { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .25s, visibility 0s .25s; }
+body.plan2d #plan { opacity: 1; visibility: visible; transition: opacity .25s; }
+.plan-bar { display: none; position: absolute; left: 0; right: 0; top: 0; height: calc(env(safe-area-inset-top, 0px) + 52px); z-index: 7; background: rgba(11, 12, 15, .97); border-bottom: 1px solid var(--line); }
+body.plan2d .plan-bar { display: block; }
+body.plan2d .vignette, body.plan2d #compass, body.plan2d .eyebrow, body.plan2d .when, body.plan2d #btn-night { display: none; }
+body.plan2d .brand { top: calc(env(safe-area-inset-top, 0px) + 6px); left: 12px; z-index: 8; display: flex; align-items: center; gap: 10px; max-width: calc(100% - 24px); text-shadow: none; }
+body.plan2d .brand h1 img { height: 40px; }
+body.plan2d .tpill { margin-top: 0; }
+body.plan2d .navpad { top: calc(env(safe-area-inset-top, 0px) + 84px); }
+#btn-foto { display: none; }
+body.plan2d #btn-foto { display: flex; }
+.compass.vw { position: absolute; right: var(--gap-xr); top: calc(var(--gap-t) + 186px); z-index: 8; font-family: var(--f-mono); font-size: 15px; font-weight: 600; color: var(--bone); }
+body.in-team .compass.vw { top: calc(var(--gap-t) + 244px); }
+body.plan2d .compass.vw { top: calc(env(safe-area-inset-top, 0px) + 200px); }
+body.plan2d.in-team .compass.vw { top: calc(env(safe-area-inset-top, 0px) + 200px); }
 </style>
 
 <div id="app">
   <canvas id="gl" aria-label="Mapa 3D del Survival Zombie" tabindex="0"></canvas>
   <div class="vignette" aria-hidden="true"></div>
+  <canvas id="plan" aria-label="Plano 2D del Survival Zombie"></canvas>
   <div id="labels"></div>
+  <div class="plan-bar" aria-hidden="true"></div>
 
   <header class="brand">
     <p class="eyebrow">Survival Zombie Night · mapa del evento</p>
@@ -429,6 +447,7 @@ body.intro .tabbar { transform: translateY(110%); }
     <div class="mgrid">
       <button type="button" class="mbtn" id="btn-night" aria-pressed="true"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.5 14.6A8.5 8.5 0 0 1 9.4 3.5a8.5 8.5 0 1 0 11.1 11.1z"/></svg><span id="lbl-night">Noche</span></button>
       <button type="button" class="mbtn" id="btn-2d" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15M15 6v15"/></svg><span>Vista <span id="lbl-2d">2D</span></span></button>
+      <button type="button" class="mbtn" id="btn-foto" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16v13H4z"/><path d="M4 16l5-5 4 4 3-3 4 4"/><path d="M15.5 9.5v.1"/></svg><span id="lbl-foto">Foto aérea</span></button>
       <button type="button" class="mbtn" id="btn-home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><span>General</span></button>
       <button type="button" class="mbtn" id="btn-help"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 1 1 3.6 2.3c-.8.4-1.2 1-1.2 1.9v.5"/><path d="M12 17.2v.1"/></svg><span>Gestos</span></button>
     </div>
@@ -529,6 +548,7 @@ body.intro .tabbar { transform: translateY(110%); }
     <button class="compass locate" id="btn-me" type="button" title="Centrar en mí" aria-label="Centrar en mí" aria-pressed="false" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6.5"/><circle cx="12" cy="12" r="2" fill="currentColor"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3"/></svg></button>
   </div>
 
+  <button class="compass vw" id="btn-2dq" type="button" title="Cambiar entre 3D y plano" aria-label="Cambiar entre 3D y plano">2D</button>
   <div class="hud" id="hud" hidden>
     <div class="readout" id="readout" aria-live="polite">
       <button type="button" class="x x2" id="hud-close" aria-label="Quitar casilla">×</button>
@@ -2154,18 +2174,20 @@ function pickLabel(c, r) {
 }
 
 // ---------------------------------------------------------------- cámara estilo mapa (arrastrar, pellizcar, girar, inclinar)
+let is2D = false;
 const cam = {
   target: new THREE.Vector3(), dist: 900, theta: 0.12, phi: THREE.MathUtils.degToRad(48),
   minD: 22, maxD: 2600, minPhi: 0.0009, maxPhi: THREE.MathUtils.degToRad(80),
   vel: new THREE.Vector2(), zoomAnim: null, rotAnim: null,
 };
 function applyCam() {
+  if (is2D && !flight) { cam.phi = cam.minPhi; cam.theta = 0; }
   cam.dist = THREE.MathUtils.clamp(cam.dist, cam.minD, cam.maxD);
   cam.phi = THREE.MathUtils.clamp(cam.phi, cam.minPhi, cam.maxPhi);
   cam.target.set(THREE.MathUtils.clamp(cam.target.x, -1150, 1200), 0, THREE.MathUtils.clamp(cam.target.z, -900, 950));
   const sp = Math.sin(cam.phi);
   camera.position.set(cam.target.x + Math.sin(cam.theta) * sp * cam.dist, Math.cos(cam.phi) * cam.dist, cam.target.z + Math.cos(cam.theta) * sp * cam.dist);
-  const gy = groundH(camera.position.x, camera.position.z) + 10; if (camera.position.y < gy) camera.position.y = gy;   // nunca dentro de un cerro
+  if (!is2D) { const gy = groundH(camera.position.x, camera.position.z) + 10; if (camera.position.y < gy) camera.position.y = gy; }   // nunca dentro de un cerro
   camera.rotation.set(-(Math.PI / 2 - cam.phi), cam.theta, 0, 'YXZ');
   camera.updateMatrixWorld();
 }
@@ -2188,7 +2210,7 @@ function zoomAt(f, cx, cy) {
 }
 const screenCenter = () => { const r = canvas.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; };
 function zoomStep(f, x, y) { if (x == null) [x, y] = screenCenter(); const left = (cam.zoomAnim?.left || 0) + Math.log(f); cam.zoomAnim = { left, x, y }; flight = null; }
-function rotateStep(rad) { cam.rotAnim = { left: (cam.rotAnim?.left || 0) + rad }; flight = null; }
+function rotateStep(rad) { if (is2D) return; cam.rotAnim = { left: (cam.rotAnim?.left || 0) + rad }; flight = null; }
 function updateCam(dt) {
   if (cam.zoomAnim) {
     const st = cam.zoomAnim.left * Math.min(1, dt * 9);
@@ -2204,13 +2226,14 @@ function updateCam(dt) {
     cam.target.x += cam.vel.x * dt; cam.target.z += cam.vel.y * dt;
     cam.vel.multiplyScalar(Math.exp(-dt * 4.2)); applyCam();
   }
-  if (is2D && cam.phi > 0.12 && !flight) set2D(false);
+  if (is2D && !flight && !P2.on) P2.show(true);   // al acabar el vuelo a la vista de arriba, sale el plano
 }
 
 // ---------------------------------------------------------------- vuelos de cámara
 let flight = null;
 const ease = (t) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 function flyTo(target, dist, polarDeg, azimuth = null, dur = 1600) {
+  if (is2D) { polarDeg = 0; azimuth = 0; }
   const to = { x: target.x, z: target.z, dist: THREE.MathUtils.clamp(dist ?? cam.dist, cam.minD, cam.maxD),
     phi: polarDeg == null ? cam.phi : Math.max(cam.minPhi, THREE.MathUtils.degToRad(polarDeg)), theta: azimuth ?? cam.theta };
   let dT = to.theta - cam.theta; dT = Math.atan2(Math.sin(dT), Math.cos(dT));
@@ -2228,6 +2251,11 @@ function updateFlight(now) {
   if (k >= 1) flight = null;
 }
 function overview(instant = false, dur = 1600) {
+  if (is2D) {   // en el plano, la cuadrícula entera
+    const [gx, gz] = gridToWorld(13.5, 9), w = canvas.clientWidth, h = canvas.clientHeight;
+    flyTo(new THREE.Vector3(gx, 0, gz), (h / 2) / (Math.min(w / 980, h / 780) * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2))), 0, 0, dur);
+    return;
+  }
   const pts = [...Object.values(EV.points)];
   let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9;
   for (const p of pts) { x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); z0 = Math.min(z0, p.z); z1 = Math.max(z1, p.z); }
@@ -2240,15 +2268,16 @@ function overview(instant = false, dur = 1600) {
   const polar = wide ? 48 : 34;
   if (instant) { cam.target.set(cx, 0, cz); cam.dist = dist; cam.phi = THREE.MathUtils.degToRad(polar); cam.theta = 0.12; applyCam(); }
   else flyTo(new THREE.Vector3(cx, 0, cz), dist, polar, 0.12, dur);
-  set2D(false);
+  set2D(false);   // (aquí solo se llega desde el 3D)
 }
 function focusMarker(mk) { flyTo(new THREE.Vector3(mk.x, 0, mk.z), 150, 55); }
-let is2D = false;
-function set2D(v) { is2D = v; $('#btn-2d').setAttribute('aria-pressed', String(v)); $('#lbl-2d').textContent = v ? '3D' : '2D'; }
-$('#btn-2d').addEventListener('click', () => {
-  if (!is2D) { flyTo(cam.target, Math.max(cam.dist, 500), 0, 0); set2D(true); }
-  else { flyTo(cam.target, null, 50, null); set2D(false); }
-});
+function set2D(v) { is2D = v; $('#btn-2d').setAttribute('aria-pressed', String(v)); $('#lbl-2d').textContent = $('#btn-2dq').textContent = v ? '3D' : '2D'; }
+function toggle2D() {
+  if (!is2D) { set2D(true); flyTo(cam.target, Math.max(cam.dist, 500), 0, 0, 800); }
+  else { set2D(false); P2.show(false); flyTo(cam.target, null, 50, null); }
+}
+$('#btn-2d').addEventListener('click', toggle2D);
+$('#btn-2dq').addEventListener('click', toggle2D);
 $('#btn-home').addEventListener('click', () => overview());
 $('#compass').addEventListener('click', () => flyTo(cam.target, null, null, 0, 800));
 
@@ -2301,7 +2330,7 @@ function beginGesture(e) {
   const list = [...ptrs.values()];
   if (list.length === 1) {
     const p = list[0];
-    const orbit = e && e.pointerType === 'mouse' && (e.button === 2 || e.button === 1 || e.shiftKey || e.ctrlKey || e.altKey || e.metaKey);
+    const orbit = !is2D && e && e.pointerType === 'mouse' && (e.button === 2 || e.button === 1 || e.shiftKey || e.ctrlKey || e.altKey || e.metaKey);
     gest = orbit ? { type: 'orbit', lx: p.x, ly: p.y }
       : { type: 'pan', anchor: groundAt(p.x, p.y, new THREE.Vector3()), lt: performance.now(), lx: cam.target.x, lz: cam.target.z, tap: true, sx: p.x, sy: p.y, t0: performance.now() };
   } else if (list.length >= 2) {
@@ -2349,7 +2378,7 @@ canvas.addEventListener('pointermove', (e) => {
       const dy1 = a.y - a.sy, dy2 = b.y - b.sy, dx1 = a.x - a.sx, dx2 = b.x - b.sx;
       const vertical = Math.sign(dy1) === Math.sign(dy2) && Math.abs(dy1) > 1.6 * Math.abs(dx1) && Math.abs(dy2) > 1.6 * Math.abs(dx2)
         && Math.abs(dy1 - dy2) < 0.6 * Math.max(Math.abs(dy1), Math.abs(dy2)) && Math.abs(d - gest.d0) < 30;
-      gest.mode = vertical ? 'tilt' : 'move';
+      gest.mode = vertical && !is2D ? 'tilt' : 'move';
       Object.assign(gest, { mx0: mx, my0: my, d0: d, a0: Math.atan2(b.y - a.y, b.x - a.x), dist0: cam.dist, theta0: cam.theta, phi0: cam.phi, anchor: groundAt(mx, my, new THREE.Vector3()) });
       return;
     }
@@ -2400,9 +2429,10 @@ function handleTap(x, y) {
 }
 let tapTimer = null;
 function tapAt(x, y) {
+  if (P2.on && P2.tap(x, y)) return;
   const p = groundAt(x, y, new THREE.Vector3()); if (!p) return;
   const [u, v] = worldToGrid(p.x, p.z);
-  if (gridText.visible) {
+  if (gridText.visible && !P2.on) {
     // franja de números (arriba y abajo) y de letras (a los lados), con algo de margen para el dedo
     if (u >= 1 && u < 26 && ((v >= -1.6 && v < 0) || (v >= 18 && v < 19.6))) { const c = Math.floor(u); pickLabel(pick.col === c ? null : c, pick.row); return; }
     if (v >= 0 && v < 18 && ((u >= -0.6 && u < 1) || (u >= 26 && u < 27.6))) { const r = Math.floor(v); pickLabel(pick.col, pick.row === r ? null : r); return; }
@@ -2471,7 +2501,249 @@ const needle = $('#needle');
 const _v = new THREE.Vector3(), _toCam = new THREE.Vector3();
 const clock = new THREE.Clock();
 let t = 0, lastLabel = 0;
+
+// ---------------------------------------------------------------- plano 2D
+// Lo comparten la vista 2D del jugador (P2, más abajo) y la vista de organización de la demo (tools/org.js).
+// Callejero: calles claras con su nombre, manzanas oscuras y lisas, plazas, jardines y el río; las calles principales se ven
+// aunque se aleje el plano. Foto: la ortofoto oscurecida con las huellas de los edificios (iglesias y monumentos en ámbar).
+// Se pinta con v = { sx, sy, wx, wz, sc, W, H, top, bot, left, right }: de mundo a pantalla, escala en px/m y márgenes.
+const PLAN = (() => {
+  const BB = { x0: D.det[0], x1: D.det[2], z0: D.det[1], z1: D.det[3] };
+  const CC = { land: '#343b48', out: '#16181d', block: '#1e2229', church: '#4a3a24', plaza: '#3d4555', green: '#22382e', water: '#1a3a56' };
+  const RW = [9, 8, 5.5, 4, 3.5, 2], RMIN = [3.4, 3, 1.7, 1.4, 1.1, 0.8], RCOL = ['#8590a3', '#78839a', '#4f586c', '#4a5367', '#454e60', '#434c5d'];
+  const ROADS = (D.roads2d || []).slice().sort((a, b) => b.c - a.c);
+  const BLD = D.buildings.filter((q) => !q.inv).map((q) => { let x0 = 1e9, z0 = 1e9, x1 = -1e9, z1 = -1e9; for (let i = 0; i < q.p.length; i += 2) { x0 = Math.min(x0, q.p[i]); x1 = Math.max(x1, q.p[i]); z0 = Math.min(z0, q.p[i + 1]); z1 = Math.max(z1, q.p[i + 1]); } return { p: q.p, k: q.k, b: [x0, z0, x1, z1] }; });
+  // nombres de calle: el tramo recto más largo de cada calle (hasta dos sitios por calle, lejos uno de otro)
+  const LBL = [];
+  {
+    const by = new Map();
+    for (const r of D.roads2d || []) {
+      if (!r.n || r.c > 3) continue;
+      for (let i = 0; i + 3 < r.p.length; i += 2) {
+        const x0 = r.p[i], z0 = r.p[i + 1], x1 = r.p[i + 2], z1 = r.p[i + 3], len = Math.hypot(x1 - x0, z1 - z0); if (len < 22) continue;
+        let a = Math.atan2(z1 - z0, x1 - x0); if (a > Math.PI / 2) a -= Math.PI; if (a < -Math.PI / 2) a += Math.PI;
+        if (!by.has(r.n)) by.set(r.n, []); by.get(r.n).push({ n: r.n.replace(/^Avenida /, 'Av. '), x: (x0 + x1) / 2, z: (z0 + z1) / 2, a, len, c: r.c });
+      }
+    }
+    for (const l of by.values()) { l.sort((a, b) => b.len - a.len); const keep = [l[0]]; for (const o of l) if (keep.length < 2 && keep.every((k) => Math.hypot(k.x - o.x, k.z - o.z) > 160)) keep.push(o); LBL.push(...keep); }
+    LBL.sort((a, b) => a.c - b.c || b.len - a.len);
+  }
+  const lblW = new Map();
+  // de lejos las manzanas son una imagen; de cerca, cada edificio. Las dos imágenes se hacen la primera vez que hacen falta
+  const BPB = 1.8; let bld = null;
+  function blocks() {
+    if (bld) return bld;
+    bld = document.createElement('canvas'); bld.width = Math.round((BB.x1 - BB.x0) * BPB); bld.height = Math.round((BB.z1 - BB.z0) * BPB);
+    const b = bld.getContext('2d');
+    for (const q of BLD) { b.beginPath(); for (let i = 0; i < q.p.length; i += 2) (i ? b.lineTo : b.moveTo).call(b, (q.p[i] - BB.x0) * BPB, (q.p[i + 1] - BB.z0) * BPB); b.closePath(); b.fillStyle = q.k === 4 ? CC.church : CC.block; b.fill(); }
+    return bld;
+  }
+  const BPM = 1.6; let base = null, baseReady = false, wideImg = null;
+  function loadPhoto() {
+    base = document.createElement('canvas'); base.width = Math.round((BB.x1 - BB.x0) * BPM); base.height = Math.round((BB.z1 - BB.z0) * BPM);
+    wideImg = new Image(); wideImg.src = 'assets/ortho_wide.jpg';
+    const img = new Image(); img.src = 'assets/ortho.jpg';
+    img.onload = () => {
+      const b = base.getContext('2d'), det = D.det;
+      const bx = (x) => (x - BB.x0) * BPM, bz = (z) => (z - BB.z0) * BPM;
+      const poly = (p) => { b.beginPath(); for (let i = 0; i < p.length; i += 2) (i ? b.lineTo : b.moveTo).call(b, bx(p[i]), bz(p[i + 1])); b.closePath(); };
+      b.fillStyle = '#0b0d11'; b.fillRect(0, 0, base.width, base.height);
+      b.drawImage(img, bx(det[0]), bz(det[1]), (det[2] - det[0]) * BPM, (det[3] - det[1]) * BPM);
+      b.fillStyle = 'rgba(9, 11, 15, 0.66)'; b.fillRect(0, 0, base.width, base.height);
+      b.fillStyle = 'rgba(46, 120, 170, 0.5)'; for (const w of D.water) { poly(w.p); b.fill(); }
+      b.lineWidth = 1;
+      for (const q of D.buildings) {
+        if (q.inv) continue; poly(q.p);
+        if (q.k === 4) { b.fillStyle = 'rgba(255, 178, 63, 0.34)'; b.strokeStyle = 'rgba(255, 190, 90, 0.8)'; } else { b.fillStyle = 'rgba(232, 228, 216, 0.11)'; b.strokeStyle = 'rgba(232, 228, 216, 0.22)'; }
+        b.fill(); b.stroke();
+      }
+      for (const m of D.monuments || []) {
+        b.strokeStyle = 'rgba(255, 190, 90, 0.85)'; b.fillStyle = 'rgba(255, 178, 63, 0.22)'; b.lineWidth = 1.5;
+        if (m.t === 'castle') { poly(m.p); b.fill(); b.stroke(); }
+        else if (m.t === 'ring') { b.beginPath(); b.arc(bx(m.x), bz(m.z), m.ro * BPM, 0, TAU); b.arc(bx(m.x), bz(m.z), m.ri * BPM, 0, TAU, true); b.fill(); b.stroke(); }
+        else { b.fillStyle = 'rgba(255, 205, 120, 0.95)'; b.beginPath(); b.arc(bx(m.x), bz(m.z), (m.r || m.s / 2) * BPM, 0, TAU); b.fill(); }
+      }
+      baseReady = true; kick(300);
+    };
+  }
+  function photo(ctx, v) {
+    if (!base) loadPhoto();
+    ctx.fillStyle = '#0b0d11'; ctx.fillRect(0, 0, v.W, v.H);
+    if (wideImg.complete && wideImg.naturalWidth) { const w = D.wide; ctx.drawImage(wideImg, v.sx(w[0]), v.sy(w[1]), (w[2] - w[0]) * v.sc, (w[3] - w[1]) * v.sc); ctx.fillStyle = 'rgba(9, 11, 15, 0.72)'; ctx.fillRect(0, 0, v.W, v.H); }
+    if (baseReady) ctx.drawImage(base, v.sx(BB.x0), v.sy(BB.z0), (BB.x1 - BB.x0) * v.sc, (BB.z1 - BB.z0) * v.sc);
+  }
+  function streets(ctx, v) {
+    const { sx, sy, wx, wz, sc, W, H } = v;
+    const fill = (p, col) => { ctx.beginPath(); for (let i = 0; i < p.length; i += 2) (i ? ctx.lineTo : ctx.moveTo).call(ctx, sx(p[i]), sy(p[i + 1])); ctx.closePath(); ctx.fillStyle = col; ctx.fill(); };
+    ctx.fillStyle = CC.out; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = CC.land; ctx.fillRect(sx(BB.x0), sy(BB.z0), (BB.x1 - BB.x0) * sc, (BB.z1 - BB.z0) * sc);
+    for (const g of D.green2d || []) fill(g, CC.green);
+    for (const w of D.water) fill(w.p, CC.water);
+    for (const q of D.plazas2d || []) fill(q, CC.plaza);
+    // calles: de las pequeñas a las principales, con un grosor mínimo para que se vean de lejos
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    let c = -1;
+    for (const r of ROADS) {
+      if (r.c !== c) { if (c >= 0) ctx.stroke(); c = r.c; ctx.beginPath(); ctx.strokeStyle = RCOL[c]; ctx.lineWidth = Math.max(RW[c] * sc, RMIN[c]); }
+      for (let i = 0; i < r.p.length; i += 2) (i ? ctx.lineTo : ctx.moveTo).call(ctx, sx(r.p[i]), sy(r.p[i + 1]));
+    }
+    if (c >= 0) ctx.stroke();
+    // manzanas encima: así cada calle se ve exactamente como el hueco entre edificios
+    if (sc < 2) { ctx.imageSmoothingEnabled = true; ctx.drawImage(blocks(), sx(BB.x0), sy(BB.z0), (BB.x1 - BB.x0) * sc, (BB.z1 - BB.z0) * sc); }
+    else {
+      const x0 = wx(v.left - 20), x1 = wx(W + 20), z0 = wz(v.top - 20), z1 = wz(H + 20);
+      for (const q of BLD) if (q.b[2] > x0 && q.b[0] < x1 && q.b[3] > z0 && q.b[1] < z1) fill(q.p, q.k === 4 ? CC.church : CC.block);
+    }
+    for (const m of D.monuments || []) if (m.x !== undefined && m.t !== 'ring') { ctx.beginPath(); ctx.arc(sx(m.x), sy(m.z), Math.max(2.5, (m.r || m.s / 2) * sc), 0, TAU); ctx.fillStyle = '#c9a160'; ctx.fill(); }
+    // nombres de calle a lo largo de la calle, sin pisarse
+    if (sc < 0.85) return;
+    ctx.font = '600 12px "Barlow Condensed", "Arial Narrow", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const placed = [];
+    for (const l of LBL) {
+      const X = sx(l.x), Y = sy(l.z); if (X < v.left || X > W - v.right || Y < v.top || Y > H - v.bot) continue;
+      let w = lblW.get(l.n); if (w === undefined) { w = ctx.measureText(l.n).width; lblW.set(l.n, w); }
+      if (l.len * sc < w + 10) continue;
+      const r = w / 2 + 6; if (placed.some((o) => Math.hypot(o[0] - X, o[1] - Y) < o[2] + r - 4)) continue;
+      placed.push([X, Y, r]);
+      ctx.save(); ctx.translate(X, Y); ctx.rotate(l.a);
+      ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(22, 25, 31, 0.92)'; ctx.strokeText(l.n, 0, 0.5); ctx.fillStyle = l.c <= 1 ? '#e2e6ee' : '#b9c1ce'; ctx.fillText(l.n, 0, 0.5);
+      ctx.restore();
+    }
+    ctx.textAlign = 'left';
+  }
+  return { streets, photo };
+})();
+
+// Vista 2D del jugador: un plano de verdad, como el de la organización, no el 3D visto desde arriba. Norte siempre arriba.
+// El 3D se para (gasta mucho menos batería) y el plano se pinta en su propio canvas, que no recibe los toques: los gestos, los
+// vuelos y el «centrar en mí» son los de siempre, con la cámara mirando recto hacia abajo y el plano a la misma escala que ella.
+const P2 = (() => {
+  const cv = $('#plan'), ctx = cv.getContext('2d');
+  const o = { on: false, foto: false, v: null, extra: null, tapExtra: null };   // extra y tapExtra: lo que añade la demo (las pruebas)
+  const NUM = 20, LET = 20;   // franjas fijas de números (arriba) y letras (izquierda)
+  let W = 0, H = 0, DPR = 1, BAR = 0, BOT = 0, hatch = null;
+  const ICO = {}; for (const k of Object.keys(ICON)) ICO[k] = new Path2D(ICON[k]);
+  // lugares que la gente usa de referencia (los castillos no tienen x, z: van por su primera torre)
+  const MN = { 'Torre de Santa María': 'Santa María', 'Torre de San Andrés': 'San Andrés', 'Torre de San Pedro de los Francos': 'San Pedro', 'Santo Sepulcro (torre norte)': 'Santo Sepulcro',
+    'Cúpula de San Juan el Real': 'San Juan el Real', 'Plaza de toros': 'Plaza de toros', 'Castillo Mayor': 'Castillo Mayor', 'Castillo del Reloj': 'Castillo del Reloj', 'Castillo de Doña Martina': 'Doña Martina', 'Torre Mocha': 'Torre Mocha' };
+  const MARKS = (D.monuments || []).filter((m) => MN[m.n]).map((m) => ({ n: MN[m.n], x: m.x ?? m.tw[0][0], z: m.z ?? m.tw[0][1] }));
+  function resize() {
+    DPR = Math.min(devicePixelRatio || 1, 2); W = canvas.clientWidth; H = canvas.clientHeight;
+    cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+    BAR = $('.plan-bar').getBoundingClientRect().height; BOT = H - $('.tabbar').getBoundingClientRect().top + canvas.getBoundingClientRect().top;
+  }
+  addEventListener('resize', () => { if (o.on) { resize(); kick(300); } });
+  function view() {
+    const s = (H / 2) / (cam.dist * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2))), cx = cam.target.x, cz = cam.target.z;
+    return { sx: (x) => (x - cx) * s + W / 2, sy: (z) => (z - cz) * s + H / 2, wx: (px) => (px - W / 2) / s + cx, wz: (py) => (py - H / 2) / s + cz, sc: s, W, H, top: BAR + NUM, bot: BOT, left: LET, right: 0 };
+  }
+  function badge(X, Y, r, col, key) {
+    ctx.beginPath(); ctx.arc(X, Y, r, 0, TAU); ctx.fillStyle = col; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(10, 12, 16, .8)'; ctx.stroke();
+    ctx.save(); ctx.translate(X - r * 0.66, Y - r * 0.66); ctx.scale(r * 1.32 / 24, r * 1.32 / 24); ctx.fillStyle = '#fff'; ctx.fill(ICO[key], 'evenodd'); ctx.restore();
+  }
+  const text = (s, X, Y, col, size = 12, w = 700) => { ctx.font = `${w} ${size}px "Barlow Condensed", "Arial Narrow", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(14, 16, 21, .92)'; ctx.strokeText(s, X, Y); ctx.fillStyle = col; ctx.fillText(s, X, Y); ctx.textAlign = 'left'; };
+  function draw(now) {
+    const v = o.v = view(), { sx, sy, sc } = v;
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    if (o.foto) PLAN.photo(ctx, v); else PLAN.streets(ctx, v);
+    const [gx0, gz0] = gridToWorld(1, 0), [gx1, gz1] = gridToWorld(26, 18), grid = gridText.visible;
+    // la cuadrícula del mapa, con el borde del juego en rojo
+    if (grid) {
+      ctx.strokeStyle = 'rgba(255, 255, 255, .13)'; ctx.lineWidth = 1; ctx.beginPath();
+      for (let c = 1; c <= 26; c++) { const [a, b] = gridToWorld(c, 0), [d, e] = gridToWorld(c, 18); ctx.moveTo(sx(a), sy(b)); ctx.lineTo(sx(d), sy(e)); }
+      for (let r = 0; r <= 18; r++) { const [a, b] = gridToWorld(1, r), [d, e] = gridToWorld(26, r); ctx.moveTo(sx(a), sy(b)); ctx.lineTo(sx(d), sy(e)); }
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(227, 52, 42, .85)'; ctx.lineWidth = 1.6; ctx.strokeRect(sx(gx0), sy(gz0), sx(gx1) - sx(gx0), sy(gz1) - sy(gz0));
+    }
+    // zonas no accesibles
+    if (!hatch) { const k = document.createElement('canvas'); k.width = k.height = 10; const x = k.getContext('2d'); x.strokeStyle = 'rgba(255, 70, 60, .55)'; x.lineWidth = 2; x.beginPath(); x.moveTo(0, 10); x.lineTo(10, 0); x.stroke(); hatch = ctx.createPattern(k, 'repeat'); }
+    for (const z of ZONES) {
+      const p = EV.zones[z.id]; ctx.beginPath(); p.forEach(([x, q], i) => (i ? ctx.lineTo(sx(x), sy(q)) : ctx.moveTo(sx(x), sy(q)))); ctx.closePath();
+      ctx.fillStyle = hatch; ctx.fill(); ctx.strokeStyle = 'rgba(255, 70, 60, .9)'; ctx.lineWidth = 1.5; ctx.setLineDash([5, 4]); ctx.stroke(); ctx.setLineDash([]);
+    }
+    // columna y fila del buscador y casilla elegida
+    const band = (c0, r0, c1, r1) => { const [a, b] = gridToWorld(c0, r0), [d, e] = gridToWorld(c1, r1); ctx.fillRect(sx(a), sy(b), sx(d) - sx(a), sy(e) - sy(b)); };
+    ctx.fillStyle = 'rgba(255, 90, 68, .18)';
+    if (pick.col != null) band(pick.col, 0, pick.col + 1, 18);
+    if (pick.row != null) band(1, pick.row, 26, pick.row + 1);
+    const sc0 = U.uSel.value.x, sr0 = U.uSel.value.y;
+    if (sc0 > 0) {
+      ctx.fillStyle = 'rgba(255, 90, 68, .3)'; band(sc0, sr0, sc0 + 1, sr0 + 1);
+      const [a, b] = gridToWorld(sc0, sr0), [d, e] = gridToWorld(sc0 + 1, sr0 + 1); ctx.strokeStyle = '#ff5a44'; ctx.lineWidth = 2; ctx.strokeRect(sx(a), sy(b), sx(d) - sx(a), sy(e) - sy(b));
+    }
+    // sitios de referencia
+    if (sc >= 0.75) for (const m of MARKS) text(m.n, sx(m.x), sy(m.z) - 11, '#e8c88f', 13);
+    // puntos del evento y zonas no accesibles
+    for (const z of ZONES) { const p = EV.points[z.skull]; if (p) badge(sx(p.x), sy(p.z), 11, '#c4211a', 'zona'); }
+    for (const m of markers) { const X = sx(m.x), Y = sy(m.z); badge(X, Y, 13, m.col, m.key); if (sc >= 0.75) text(m.short || m.name, X, Y + 21, '#f4efe2', 13); }
+    o.extra?.(ctx, v, now);
+    // avisos y el grupo: círculo de precisión del GPS (los rótulos con las iniciales van encima)
+    for (const p of pings.values()) { const ph = (now / 1100) % 1, X = sx(p.x), Y = sy(p.z); ctx.beginPath(); ctx.arc(X, Y, 6 + ph * 22, 0, TAU); ctx.strokeStyle = p.col; ctx.globalAlpha = 1 - ph; ctx.lineWidth = 2.5; ctx.stroke(); ctx.globalAlpha = 1; ctx.beginPath(); ctx.arc(X, Y, 5, 0, TAU); ctx.fillStyle = p.col; ctx.fill(); }
+    const all = [...team.members.values()]; if (team.meEntry) all.push(team.meEntry);
+    for (const m of all) {
+      if (!m.av || !m.inside) continue;
+      const r = Math.min(m.acc || 10, 80) * sc; if (r < 10) continue;
+      ctx.beginPath(); ctx.arc(sx(m.x), sy(m.z), r, 0, TAU); ctx.globalAlpha = 0.14; ctx.fillStyle = m.col; ctx.fill(); ctx.globalAlpha = 1;
+    }
+    // franjas fijas: se lee la casilla sin tener que ir al borde del mapa
+    if (grid) {
+      ctx.fillStyle = 'rgba(11, 12, 15, .9)'; ctx.fillRect(0, BAR, W, NUM); ctx.fillRect(0, BAR + NUM, LET, H - BAR - NUM - BOT);
+      const cell = Math.abs(sx(gridToWorld(2, 0)[0]) - sx(gridToWorld(1, 0)[0])), st = cell < 11 ? 5 : cell < 20 ? 2 : 1;
+      ctx.font = '600 11px "IBM Plex Mono", ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      for (let c = 1; c <= 25; c++) {
+        const on = c === sc0 || c === pick.col; if (!on && (c - 1) % st) continue;
+        const X = sx(gridToWorld(c + 0.5, 0)[0]); if (X < LET || X > W) continue;
+        ctx.fillStyle = on ? '#ff8a66' : 'rgba(241, 234, 215, .75)'; ctx.fillText(String(c), X, BAR + NUM / 2 + 0.5);
+      }
+      for (let r = 0; r < 18; r++) {
+        const on = r === sr0 && sc0 > 0 || r === pick.row; if (!on && r % st) continue;
+        const Y = sy(gridToWorld(1, r + 0.5)[1]); if (Y < BAR + NUM || Y > H - BOT) continue;
+        ctx.fillStyle = on ? '#ff8a66' : 'rgba(241, 234, 215, .75)'; ctx.fillText(ROWS[r], LET / 2, Y + 0.5);
+      }
+      ctx.textAlign = 'left';
+    }
+  }
+  function frame(now) {
+    const active = busy() || now < power.wakeUntil;
+    if (!active && now - power.last < 1000 / (power.saver ? 1 : 15) - 4) return;
+    power.last = now;
+    const dt = Math.min(clock.getDelta(), 0.1); t += dt;
+    updateFlight(now); updateCam(dt); updateTeam(dt);
+    draw(now); labels2D();
+  }
+  // en el plano no hay rótulos altos: los del grupo y los avisos van pegados a su sitio; los puntos del evento los pinta el plano
+  function labels2D() {
+    const v = o.v; if (!v) return;
+    for (const L of labels) {
+      if (L.hide || L.kind !== 'member') { L.el.style.display = 'none'; continue; }
+      const x = v.sx(L.pos.x), y = v.sy(L.pos.z);
+      if (x < -40 || y < -40 || x > W + 40 || y > H + 40) { L.el.style.display = 'none'; continue; }
+      L.el.style.display = '';
+      L.el.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0) translate(-50%, ${L.el.classList.contains('ping') ? '-125%' : '-50%'})`;
+    }
+  }
+  // un toque en el plano: los números y las letras fijos, lo que añade la demo y los puntos del evento; lo demás, la casilla de siempre
+  function tap(px, py) {
+    const v = o.v; if (!v) return false;
+    if (gridText.visible && py >= BAR && py < BAR + NUM) { const c = Math.floor(worldToGrid(v.wx(px), gridToWorld(1, 9)[1])[0]); if (c >= 1 && c < 26) pickLabel(pick.col === c ? null : c, pick.row); return true; }
+    if (gridText.visible && px < LET && py >= BAR + NUM) { const r = Math.floor(worldToGrid(gridToWorld(13, 0)[0], v.wz(py))[1]); if (r >= 0 && r < 18) pickLabel(pick.col, pick.row === r ? null : r); return true; }
+    if (o.tapExtra?.(px, py, v)) return true;
+    const m = markers.find((q) => Math.hypot(v.sx(q.x) - px, v.sy(q.z) - py) < 18);
+    if (m) { const [u, w] = worldToGrid(m.x, m.z); if (pick.col != null || pick.row != null) setLines(null, null); selectCell(Math.floor(u), Math.floor(w)); onCellTapped(m); return true; }
+    return false;
+  }
+  function show(v) {
+    o.on = v; document.body.classList.toggle('plan2d', v);
+    if (v) { resize(); cam.rotAnim = null; applyCam(); o.v = view(); }
+    kick(1500);
+  }
+  function setFoto(v) { o.foto = v; $('#btn-foto').setAttribute('aria-pressed', String(v)); $('#lbl-foto').textContent = v ? 'Callejero' : 'Foto aérea'; kick(300); }
+  return Object.assign(o, { frame, tap, show, setFoto });
+})();
+$('#btn-foto').addEventListener('click', () => P2.setFoto(!P2.foto));
+
 function updateLabels() {
+  if (P2.on) return;
   const w = canvas.clientWidth, h = canvas.clientHeight;
   for (const L of labels) {
     if (L.hide || (L.kind === 'place' && !showNames)) { L.el.style.display = 'none'; continue; }
@@ -2493,6 +2765,7 @@ function frame() {
   requestAnimationFrame(frame);
   if (power.pocket) return;
   const now = performance.now();
+  if (P2.on) { P2.frame(now); return; }
   const active = busy() || now < power.wakeUntil;
   const idleFps = power.saver ? 1 : COARSE ? 30 : 60;
   if (!active && now - power.last < 1000 / idleFps - 4) return;
@@ -3445,7 +3718,7 @@ function showPing(m) {
   el.addEventListener('click', () => { flyTo(new THREE.Vector3(x, 0, z), 170, 52); toast(`Quitar el aviso de ${m.cell || 'aquí'}`, '#ff8a80', () => removePing(m.pid, true)); });
   const L = { el, pos: new THREE.Vector3(x, 30, z), kind: 'member', always: true };
   labelsEl.appendChild(el); labels.push(L);
-  pings.set(m.pid, { g, ring, L, ts: Date.now(), ttl: P.ttl, t, who: m.id });
+  pings.set(m.pid, { g, ring, L, ts: Date.now(), ttl: P.ttl, t, who: m.id, x, z, col: P.col || col });
   kick(1500);
 }
 async function removePing(pid, broadcast) {
@@ -3514,7 +3787,7 @@ if (MODE === 'artifact') {
 window.__pv.team = team; window.__pv.amb = amb;
 // vídeo de presentación y demo: sus guiones (tools/video.js, tools/demo.js) mueven estas piezas del mapa
 if (MODE === 'video' || MODE === 'demo') {
-  window.__pvApi = { THREE, D, EV, ROWS, cam, camera, canvas, applyCam, overview, kick, setSaver, power, U,
+  window.__pvApi = { THREE, D, EV, ROWS, PLAN, P2, cam, camera, canvas, applyCam, overview, kick, setSaver, power, U,
     gridToWorld, worldToGrid, cellName, edgeLabels, markers, target, selectCell, clearCell, setLines, setActs, pickLabel, cellInfo,
     team, ROSTER, placeEntry, placeMe, renderTeamList, updatePill, openTeam, closeSheets,
     showPing, dropPing, pings, PING, toast, onPing,

@@ -412,12 +412,30 @@ body.intro .tabbar { transform: translateY(110%); }
   .brand, .navpad, .tabbar { transition: none; }
   .sheet, .readout { animation: none; }
 }
+/* vista 2D: el plano (P2). El 3D se para y se pinta #plan, que no recibe toques; arriba, una barra fija */
+#plan { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .25s, visibility 0s .25s; }
+body.plan2d #plan { opacity: 1; visibility: visible; transition: opacity .25s; }
+.plan-bar { display: none; position: absolute; left: 0; right: 0; top: 0; height: calc(env(safe-area-inset-top, 0px) + 52px); z-index: 7; background: rgba(11, 12, 15, .97); border-bottom: 1px solid var(--line); }
+body.plan2d .plan-bar { display: block; }
+body.plan2d .vignette, body.plan2d #compass, body.plan2d .eyebrow, body.plan2d .when, body.plan2d #btn-night { display: none; }
+body.plan2d .brand { top: calc(env(safe-area-inset-top, 0px) + 6px); left: 12px; z-index: 8; display: flex; align-items: center; gap: 10px; max-width: calc(100% - 24px); text-shadow: none; }
+body.plan2d .brand h1 img { height: 40px; }
+body.plan2d .tpill { margin-top: 0; }
+body.plan2d .navpad { top: calc(env(safe-area-inset-top, 0px) + 84px); }
+#btn-foto { display: none; }
+body.plan2d #btn-foto { display: flex; }
+.compass.vw { position: absolute; right: var(--gap-xr); top: calc(var(--gap-t) + 186px); z-index: 8; font-family: var(--f-mono); font-size: 15px; font-weight: 600; color: var(--bone); }
+body.in-team .compass.vw { top: calc(var(--gap-t) + 244px); }
+body.plan2d .compass.vw { top: calc(env(safe-area-inset-top, 0px) + 200px); }
+body.plan2d.in-team .compass.vw { top: calc(env(safe-area-inset-top, 0px) + 200px); }
 </style>
 
 <div id="app">
   <canvas id="gl" aria-label="Mapa 3D del Survival Zombie" tabindex="0"></canvas>
   <div class="vignette" aria-hidden="true"></div>
+  <canvas id="plan" aria-label="Plano 2D del Survival Zombie"></canvas>
   <div id="labels"></div>
+  <div class="plan-bar" aria-hidden="true"></div>
 
   <header class="brand">
     <p class="eyebrow">Survival Zombie Night · mapa del evento</p>
@@ -430,6 +448,7 @@ body.intro .tabbar { transform: translateY(110%); }
     <div class="mgrid">
       <button type="button" class="mbtn" id="btn-night" aria-pressed="true"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.5 14.6A8.5 8.5 0 0 1 9.4 3.5a8.5 8.5 0 1 0 11.1 11.1z"/></svg><span id="lbl-night">Noche</span></button>
       <button type="button" class="mbtn" id="btn-2d" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15M15 6v15"/></svg><span>Vista <span id="lbl-2d">2D</span></span></button>
+      <button type="button" class="mbtn" id="btn-foto" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16v13H4z"/><path d="M4 16l5-5 4 4 3-3 4 4"/><path d="M15.5 9.5v.1"/></svg><span id="lbl-foto">Foto aérea</span></button>
       <button type="button" class="mbtn" id="btn-home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><span>General</span></button>
       <button type="button" class="mbtn" id="btn-help"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 1 1 3.6 2.3c-.8.4-1.2 1-1.2 1.9v.5"/><path d="M12 17.2v.1"/></svg><span>Gestos</span></button>
     </div>
@@ -530,6 +549,7 @@ body.intro .tabbar { transform: translateY(110%); }
     <button class="compass locate" id="btn-me" type="button" title="Centrar en mí" aria-label="Centrar en mí" aria-pressed="false" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6.5"/><circle cx="12" cy="12" r="2" fill="currentColor"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3"/></svg></button>
   </div>
 
+  <button class="compass vw" id="btn-2dq" type="button" title="Cambiar entre 3D y plano" aria-label="Cambiar entre 3D y plano">2D</button>
   <div class="hud" id="hud" hidden>
     <div class="readout" id="readout" aria-live="polite">
       <button type="button" class="x x2" id="hud-close" aria-label="Quitar casilla">×</button>
@@ -2155,18 +2175,20 @@ function pickLabel(c, r) {
 }
 
 // ---------------------------------------------------------------- cámara estilo mapa (arrastrar, pellizcar, girar, inclinar)
+let is2D = false;
 const cam = {
   target: new THREE.Vector3(), dist: 900, theta: 0.12, phi: THREE.MathUtils.degToRad(48),
   minD: 22, maxD: 2600, minPhi: 0.0009, maxPhi: THREE.MathUtils.degToRad(80),
   vel: new THREE.Vector2(), zoomAnim: null, rotAnim: null,
 };
 function applyCam() {
+  if (is2D && !flight) { cam.phi = cam.minPhi; cam.theta = 0; }
   cam.dist = THREE.MathUtils.clamp(cam.dist, cam.minD, cam.maxD);
   cam.phi = THREE.MathUtils.clamp(cam.phi, cam.minPhi, cam.maxPhi);
   cam.target.set(THREE.MathUtils.clamp(cam.target.x, -1150, 1200), 0, THREE.MathUtils.clamp(cam.target.z, -900, 950));
   const sp = Math.sin(cam.phi);
   camera.position.set(cam.target.x + Math.sin(cam.theta) * sp * cam.dist, Math.cos(cam.phi) * cam.dist, cam.target.z + Math.cos(cam.theta) * sp * cam.dist);
-  const gy = groundH(camera.position.x, camera.position.z) + 10; if (camera.position.y < gy) camera.position.y = gy;   // nunca dentro de un cerro
+  if (!is2D) { const gy = groundH(camera.position.x, camera.position.z) + 10; if (camera.position.y < gy) camera.position.y = gy; }   // nunca dentro de un cerro
   camera.rotation.set(-(Math.PI / 2 - cam.phi), cam.theta, 0, 'YXZ');
   camera.updateMatrixWorld();
 }
@@ -2189,7 +2211,7 @@ function zoomAt(f, cx, cy) {
 }
 const screenCenter = () => { const r = canvas.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; };
 function zoomStep(f, x, y) { if (x == null) [x, y] = screenCenter(); const left = (cam.zoomAnim?.left || 0) + Math.log(f); cam.zoomAnim = { left, x, y }; flight = null; }
-function rotateStep(rad) { cam.rotAnim = { left: (cam.rotAnim?.left || 0) + rad }; flight = null; }
+function rotateStep(rad) { if (is2D) return; cam.rotAnim = { left: (cam.rotAnim?.left || 0) + rad }; flight = null; }
 function updateCam(dt) {
   if (cam.zoomAnim) {
     const st = cam.zoomAnim.left * Math.min(1, dt * 9);
@@ -2205,13 +2227,14 @@ function updateCam(dt) {
     cam.target.x += cam.vel.x * dt; cam.target.z += cam.vel.y * dt;
     cam.vel.multiplyScalar(Math.exp(-dt * 4.2)); applyCam();
   }
-  if (is2D && cam.phi > 0.12 && !flight) set2D(false);
+  if (is2D && !flight && !P2.on) P2.show(true);   // al acabar el vuelo a la vista de arriba, sale el plano
 }
 
 // ---------------------------------------------------------------- vuelos de cámara
 let flight = null;
 const ease = (t) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 function flyTo(target, dist, polarDeg, azimuth = null, dur = 1600) {
+  if (is2D) { polarDeg = 0; azimuth = 0; }
   const to = { x: target.x, z: target.z, dist: THREE.MathUtils.clamp(dist ?? cam.dist, cam.minD, cam.maxD),
     phi: polarDeg == null ? cam.phi : Math.max(cam.minPhi, THREE.MathUtils.degToRad(polarDeg)), theta: azimuth ?? cam.theta };
   let dT = to.theta - cam.theta; dT = Math.atan2(Math.sin(dT), Math.cos(dT));
@@ -2229,6 +2252,11 @@ function updateFlight(now) {
   if (k >= 1) flight = null;
 }
 function overview(instant = false, dur = 1600) {
+  if (is2D) {   // en el plano, la cuadrícula entera
+    const [gx, gz] = gridToWorld(13.5, 9), w = canvas.clientWidth, h = canvas.clientHeight;
+    flyTo(new THREE.Vector3(gx, 0, gz), (h / 2) / (Math.min(w / 980, h / 780) * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2))), 0, 0, dur);
+    return;
+  }
   const pts = [...Object.values(EV.points)];
   let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9;
   for (const p of pts) { x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); z0 = Math.min(z0, p.z); z1 = Math.max(z1, p.z); }
@@ -2241,15 +2269,16 @@ function overview(instant = false, dur = 1600) {
   const polar = wide ? 48 : 34;
   if (instant) { cam.target.set(cx, 0, cz); cam.dist = dist; cam.phi = THREE.MathUtils.degToRad(polar); cam.theta = 0.12; applyCam(); }
   else flyTo(new THREE.Vector3(cx, 0, cz), dist, polar, 0.12, dur);
-  set2D(false);
+  set2D(false);   // (aquí solo se llega desde el 3D)
 }
 function focusMarker(mk) { flyTo(new THREE.Vector3(mk.x, 0, mk.z), 150, 55); }
-let is2D = false;
-function set2D(v) { is2D = v; $('#btn-2d').setAttribute('aria-pressed', String(v)); $('#lbl-2d').textContent = v ? '3D' : '2D'; }
-$('#btn-2d').addEventListener('click', () => {
-  if (!is2D) { flyTo(cam.target, Math.max(cam.dist, 500), 0, 0); set2D(true); }
-  else { flyTo(cam.target, null, 50, null); set2D(false); }
-});
+function set2D(v) { is2D = v; $('#btn-2d').setAttribute('aria-pressed', String(v)); $('#lbl-2d').textContent = $('#btn-2dq').textContent = v ? '3D' : '2D'; }
+function toggle2D() {
+  if (!is2D) { set2D(true); flyTo(cam.target, Math.max(cam.dist, 500), 0, 0, 800); }
+  else { set2D(false); P2.show(false); flyTo(cam.target, null, 50, null); }
+}
+$('#btn-2d').addEventListener('click', toggle2D);
+$('#btn-2dq').addEventListener('click', toggle2D);
 $('#btn-home').addEventListener('click', () => overview());
 $('#compass').addEventListener('click', () => flyTo(cam.target, null, null, 0, 800));
 
@@ -2302,7 +2331,7 @@ function beginGesture(e) {
   const list = [...ptrs.values()];
   if (list.length === 1) {
     const p = list[0];
-    const orbit = e && e.pointerType === 'mouse' && (e.button === 2 || e.button === 1 || e.shiftKey || e.ctrlKey || e.altKey || e.metaKey);
+    const orbit = !is2D && e && e.pointerType === 'mouse' && (e.button === 2 || e.button === 1 || e.shiftKey || e.ctrlKey || e.altKey || e.metaKey);
     gest = orbit ? { type: 'orbit', lx: p.x, ly: p.y }
       : { type: 'pan', anchor: groundAt(p.x, p.y, new THREE.Vector3()), lt: performance.now(), lx: cam.target.x, lz: cam.target.z, tap: true, sx: p.x, sy: p.y, t0: performance.now() };
   } else if (list.length >= 2) {
@@ -2350,7 +2379,7 @@ canvas.addEventListener('pointermove', (e) => {
       const dy1 = a.y - a.sy, dy2 = b.y - b.sy, dx1 = a.x - a.sx, dx2 = b.x - b.sx;
       const vertical = Math.sign(dy1) === Math.sign(dy2) && Math.abs(dy1) > 1.6 * Math.abs(dx1) && Math.abs(dy2) > 1.6 * Math.abs(dx2)
         && Math.abs(dy1 - dy2) < 0.6 * Math.max(Math.abs(dy1), Math.abs(dy2)) && Math.abs(d - gest.d0) < 30;
-      gest.mode = vertical ? 'tilt' : 'move';
+      gest.mode = vertical && !is2D ? 'tilt' : 'move';
       Object.assign(gest, { mx0: mx, my0: my, d0: d, a0: Math.atan2(b.y - a.y, b.x - a.x), dist0: cam.dist, theta0: cam.theta, phi0: cam.phi, anchor: groundAt(mx, my, new THREE.Vector3()) });
       return;
     }
@@ -2401,9 +2430,10 @@ function handleTap(x, y) {
 }
 let tapTimer = null;
 function tapAt(x, y) {
+  if (P2.on && P2.tap(x, y)) return;
   const p = groundAt(x, y, new THREE.Vector3()); if (!p) return;
   const [u, v] = worldToGrid(p.x, p.z);
-  if (gridText.visible) {
+  if (gridText.visible && !P2.on) {
     // franja de números (arriba y abajo) y de letras (a los lados), con algo de margen para el dedo
     if (u >= 1 && u < 26 && ((v >= -1.6 && v < 0) || (v >= 18 && v < 19.6))) { const c = Math.floor(u); pickLabel(pick.col === c ? null : c, pick.row); return; }
     if (v >= 0 && v < 18 && ((u >= -0.6 && u < 1) || (u >= 26 && u < 27.6))) { const r = Math.floor(v); pickLabel(pick.col, pick.row === r ? null : r); return; }
@@ -2472,7 +2502,249 @@ const needle = $('#needle');
 const _v = new THREE.Vector3(), _toCam = new THREE.Vector3();
 const clock = new THREE.Clock();
 let t = 0, lastLabel = 0;
+
+// ---------------------------------------------------------------- plano 2D
+// Lo comparten la vista 2D del jugador (P2, más abajo) y la vista de organización de la demo (tools/org.js).
+// Callejero: calles claras con su nombre, manzanas oscuras y lisas, plazas, jardines y el río; las calles principales se ven
+// aunque se aleje el plano. Foto: la ortofoto oscurecida con las huellas de los edificios (iglesias y monumentos en ámbar).
+// Se pinta con v = { sx, sy, wx, wz, sc, W, H, top, bot, left, right }: de mundo a pantalla, escala en px/m y márgenes.
+const PLAN = (() => {
+  const BB = { x0: D.det[0], x1: D.det[2], z0: D.det[1], z1: D.det[3] };
+  const CC = { land: '#343b48', out: '#16181d', block: '#1e2229', church: '#4a3a24', plaza: '#3d4555', green: '#22382e', water: '#1a3a56' };
+  const RW = [9, 8, 5.5, 4, 3.5, 2], RMIN = [3.4, 3, 1.7, 1.4, 1.1, 0.8], RCOL = ['#8590a3', '#78839a', '#4f586c', '#4a5367', '#454e60', '#434c5d'];
+  const ROADS = (D.roads2d || []).slice().sort((a, b) => b.c - a.c);
+  const BLD = D.buildings.filter((q) => !q.inv).map((q) => { let x0 = 1e9, z0 = 1e9, x1 = -1e9, z1 = -1e9; for (let i = 0; i < q.p.length; i += 2) { x0 = Math.min(x0, q.p[i]); x1 = Math.max(x1, q.p[i]); z0 = Math.min(z0, q.p[i + 1]); z1 = Math.max(z1, q.p[i + 1]); } return { p: q.p, k: q.k, b: [x0, z0, x1, z1] }; });
+  // nombres de calle: el tramo recto más largo de cada calle (hasta dos sitios por calle, lejos uno de otro)
+  const LBL = [];
+  {
+    const by = new Map();
+    for (const r of D.roads2d || []) {
+      if (!r.n || r.c > 3) continue;
+      for (let i = 0; i + 3 < r.p.length; i += 2) {
+        const x0 = r.p[i], z0 = r.p[i + 1], x1 = r.p[i + 2], z1 = r.p[i + 3], len = Math.hypot(x1 - x0, z1 - z0); if (len < 22) continue;
+        let a = Math.atan2(z1 - z0, x1 - x0); if (a > Math.PI / 2) a -= Math.PI; if (a < -Math.PI / 2) a += Math.PI;
+        if (!by.has(r.n)) by.set(r.n, []); by.get(r.n).push({ n: r.n.replace(/^Avenida /, 'Av. '), x: (x0 + x1) / 2, z: (z0 + z1) / 2, a, len, c: r.c });
+      }
+    }
+    for (const l of by.values()) { l.sort((a, b) => b.len - a.len); const keep = [l[0]]; for (const o of l) if (keep.length < 2 && keep.every((k) => Math.hypot(k.x - o.x, k.z - o.z) > 160)) keep.push(o); LBL.push(...keep); }
+    LBL.sort((a, b) => a.c - b.c || b.len - a.len);
+  }
+  const lblW = new Map();
+  // de lejos las manzanas son una imagen; de cerca, cada edificio. Las dos imágenes se hacen la primera vez que hacen falta
+  const BPB = 1.8; let bld = null;
+  function blocks() {
+    if (bld) return bld;
+    bld = document.createElement('canvas'); bld.width = Math.round((BB.x1 - BB.x0) * BPB); bld.height = Math.round((BB.z1 - BB.z0) * BPB);
+    const b = bld.getContext('2d');
+    for (const q of BLD) { b.beginPath(); for (let i = 0; i < q.p.length; i += 2) (i ? b.lineTo : b.moveTo).call(b, (q.p[i] - BB.x0) * BPB, (q.p[i + 1] - BB.z0) * BPB); b.closePath(); b.fillStyle = q.k === 4 ? CC.church : CC.block; b.fill(); }
+    return bld;
+  }
+  const BPM = 1.6; let base = null, baseReady = false, wideImg = null;
+  function loadPhoto() {
+    base = document.createElement('canvas'); base.width = Math.round((BB.x1 - BB.x0) * BPM); base.height = Math.round((BB.z1 - BB.z0) * BPM);
+    wideImg = new Image(); wideImg.src = 'assets/ortho_wide.jpg';
+    const img = new Image(); img.src = 'assets/ortho.jpg';
+    img.onload = () => {
+      const b = base.getContext('2d'), det = D.det;
+      const bx = (x) => (x - BB.x0) * BPM, bz = (z) => (z - BB.z0) * BPM;
+      const poly = (p) => { b.beginPath(); for (let i = 0; i < p.length; i += 2) (i ? b.lineTo : b.moveTo).call(b, bx(p[i]), bz(p[i + 1])); b.closePath(); };
+      b.fillStyle = '#0b0d11'; b.fillRect(0, 0, base.width, base.height);
+      b.drawImage(img, bx(det[0]), bz(det[1]), (det[2] - det[0]) * BPM, (det[3] - det[1]) * BPM);
+      b.fillStyle = 'rgba(9, 11, 15, 0.66)'; b.fillRect(0, 0, base.width, base.height);
+      b.fillStyle = 'rgba(46, 120, 170, 0.5)'; for (const w of D.water) { poly(w.p); b.fill(); }
+      b.lineWidth = 1;
+      for (const q of D.buildings) {
+        if (q.inv) continue; poly(q.p);
+        if (q.k === 4) { b.fillStyle = 'rgba(255, 178, 63, 0.34)'; b.strokeStyle = 'rgba(255, 190, 90, 0.8)'; } else { b.fillStyle = 'rgba(232, 228, 216, 0.11)'; b.strokeStyle = 'rgba(232, 228, 216, 0.22)'; }
+        b.fill(); b.stroke();
+      }
+      for (const m of D.monuments || []) {
+        b.strokeStyle = 'rgba(255, 190, 90, 0.85)'; b.fillStyle = 'rgba(255, 178, 63, 0.22)'; b.lineWidth = 1.5;
+        if (m.t === 'castle') { poly(m.p); b.fill(); b.stroke(); }
+        else if (m.t === 'ring') { b.beginPath(); b.arc(bx(m.x), bz(m.z), m.ro * BPM, 0, TAU); b.arc(bx(m.x), bz(m.z), m.ri * BPM, 0, TAU, true); b.fill(); b.stroke(); }
+        else { b.fillStyle = 'rgba(255, 205, 120, 0.95)'; b.beginPath(); b.arc(bx(m.x), bz(m.z), (m.r || m.s / 2) * BPM, 0, TAU); b.fill(); }
+      }
+      baseReady = true; kick(300);
+    };
+  }
+  function photo(ctx, v) {
+    if (!base) loadPhoto();
+    ctx.fillStyle = '#0b0d11'; ctx.fillRect(0, 0, v.W, v.H);
+    if (wideImg.complete && wideImg.naturalWidth) { const w = D.wide; ctx.drawImage(wideImg, v.sx(w[0]), v.sy(w[1]), (w[2] - w[0]) * v.sc, (w[3] - w[1]) * v.sc); ctx.fillStyle = 'rgba(9, 11, 15, 0.72)'; ctx.fillRect(0, 0, v.W, v.H); }
+    if (baseReady) ctx.drawImage(base, v.sx(BB.x0), v.sy(BB.z0), (BB.x1 - BB.x0) * v.sc, (BB.z1 - BB.z0) * v.sc);
+  }
+  function streets(ctx, v) {
+    const { sx, sy, wx, wz, sc, W, H } = v;
+    const fill = (p, col) => { ctx.beginPath(); for (let i = 0; i < p.length; i += 2) (i ? ctx.lineTo : ctx.moveTo).call(ctx, sx(p[i]), sy(p[i + 1])); ctx.closePath(); ctx.fillStyle = col; ctx.fill(); };
+    ctx.fillStyle = CC.out; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = CC.land; ctx.fillRect(sx(BB.x0), sy(BB.z0), (BB.x1 - BB.x0) * sc, (BB.z1 - BB.z0) * sc);
+    for (const g of D.green2d || []) fill(g, CC.green);
+    for (const w of D.water) fill(w.p, CC.water);
+    for (const q of D.plazas2d || []) fill(q, CC.plaza);
+    // calles: de las pequeñas a las principales, con un grosor mínimo para que se vean de lejos
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    let c = -1;
+    for (const r of ROADS) {
+      if (r.c !== c) { if (c >= 0) ctx.stroke(); c = r.c; ctx.beginPath(); ctx.strokeStyle = RCOL[c]; ctx.lineWidth = Math.max(RW[c] * sc, RMIN[c]); }
+      for (let i = 0; i < r.p.length; i += 2) (i ? ctx.lineTo : ctx.moveTo).call(ctx, sx(r.p[i]), sy(r.p[i + 1]));
+    }
+    if (c >= 0) ctx.stroke();
+    // manzanas encima: así cada calle se ve exactamente como el hueco entre edificios
+    if (sc < 2) { ctx.imageSmoothingEnabled = true; ctx.drawImage(blocks(), sx(BB.x0), sy(BB.z0), (BB.x1 - BB.x0) * sc, (BB.z1 - BB.z0) * sc); }
+    else {
+      const x0 = wx(v.left - 20), x1 = wx(W + 20), z0 = wz(v.top - 20), z1 = wz(H + 20);
+      for (const q of BLD) if (q.b[2] > x0 && q.b[0] < x1 && q.b[3] > z0 && q.b[1] < z1) fill(q.p, q.k === 4 ? CC.church : CC.block);
+    }
+    for (const m of D.monuments || []) if (m.x !== undefined && m.t !== 'ring') { ctx.beginPath(); ctx.arc(sx(m.x), sy(m.z), Math.max(2.5, (m.r || m.s / 2) * sc), 0, TAU); ctx.fillStyle = '#c9a160'; ctx.fill(); }
+    // nombres de calle a lo largo de la calle, sin pisarse
+    if (sc < 0.85) return;
+    ctx.font = '600 12px "Barlow Condensed", "Arial Narrow", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const placed = [];
+    for (const l of LBL) {
+      const X = sx(l.x), Y = sy(l.z); if (X < v.left || X > W - v.right || Y < v.top || Y > H - v.bot) continue;
+      let w = lblW.get(l.n); if (w === undefined) { w = ctx.measureText(l.n).width; lblW.set(l.n, w); }
+      if (l.len * sc < w + 10) continue;
+      const r = w / 2 + 6; if (placed.some((o) => Math.hypot(o[0] - X, o[1] - Y) < o[2] + r - 4)) continue;
+      placed.push([X, Y, r]);
+      ctx.save(); ctx.translate(X, Y); ctx.rotate(l.a);
+      ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(22, 25, 31, 0.92)'; ctx.strokeText(l.n, 0, 0.5); ctx.fillStyle = l.c <= 1 ? '#e2e6ee' : '#b9c1ce'; ctx.fillText(l.n, 0, 0.5);
+      ctx.restore();
+    }
+    ctx.textAlign = 'left';
+  }
+  return { streets, photo };
+})();
+
+// Vista 2D del jugador: un plano de verdad, como el de la organización, no el 3D visto desde arriba. Norte siempre arriba.
+// El 3D se para (gasta mucho menos batería) y el plano se pinta en su propio canvas, que no recibe los toques: los gestos, los
+// vuelos y el «centrar en mí» son los de siempre, con la cámara mirando recto hacia abajo y el plano a la misma escala que ella.
+const P2 = (() => {
+  const cv = $('#plan'), ctx = cv.getContext('2d');
+  const o = { on: false, foto: false, v: null, extra: null, tapExtra: null };   // extra y tapExtra: lo que añade la demo (las pruebas)
+  const NUM = 20, LET = 20;   // franjas fijas de números (arriba) y letras (izquierda)
+  let W = 0, H = 0, DPR = 1, BAR = 0, BOT = 0, hatch = null;
+  const ICO = {}; for (const k of Object.keys(ICON)) ICO[k] = new Path2D(ICON[k]);
+  // lugares que la gente usa de referencia (los castillos no tienen x, z: van por su primera torre)
+  const MN = { 'Torre de Santa María': 'Santa María', 'Torre de San Andrés': 'San Andrés', 'Torre de San Pedro de los Francos': 'San Pedro', 'Santo Sepulcro (torre norte)': 'Santo Sepulcro',
+    'Cúpula de San Juan el Real': 'San Juan el Real', 'Plaza de toros': 'Plaza de toros', 'Castillo Mayor': 'Castillo Mayor', 'Castillo del Reloj': 'Castillo del Reloj', 'Castillo de Doña Martina': 'Doña Martina', 'Torre Mocha': 'Torre Mocha' };
+  const MARKS = (D.monuments || []).filter((m) => MN[m.n]).map((m) => ({ n: MN[m.n], x: m.x ?? m.tw[0][0], z: m.z ?? m.tw[0][1] }));
+  function resize() {
+    DPR = Math.min(devicePixelRatio || 1, 2); W = canvas.clientWidth; H = canvas.clientHeight;
+    cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+    BAR = $('.plan-bar').getBoundingClientRect().height; BOT = H - $('.tabbar').getBoundingClientRect().top + canvas.getBoundingClientRect().top;
+  }
+  addEventListener('resize', () => { if (o.on) { resize(); kick(300); } });
+  function view() {
+    const s = (H / 2) / (cam.dist * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2))), cx = cam.target.x, cz = cam.target.z;
+    return { sx: (x) => (x - cx) * s + W / 2, sy: (z) => (z - cz) * s + H / 2, wx: (px) => (px - W / 2) / s + cx, wz: (py) => (py - H / 2) / s + cz, sc: s, W, H, top: BAR + NUM, bot: BOT, left: LET, right: 0 };
+  }
+  function badge(X, Y, r, col, key) {
+    ctx.beginPath(); ctx.arc(X, Y, r, 0, TAU); ctx.fillStyle = col; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(10, 12, 16, .8)'; ctx.stroke();
+    ctx.save(); ctx.translate(X - r * 0.66, Y - r * 0.66); ctx.scale(r * 1.32 / 24, r * 1.32 / 24); ctx.fillStyle = '#fff'; ctx.fill(ICO[key], 'evenodd'); ctx.restore();
+  }
+  const text = (s, X, Y, col, size = 12, w = 700) => { ctx.font = `${w} ${size}px "Barlow Condensed", "Arial Narrow", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(14, 16, 21, .92)'; ctx.strokeText(s, X, Y); ctx.fillStyle = col; ctx.fillText(s, X, Y); ctx.textAlign = 'left'; };
+  function draw(now) {
+    const v = o.v = view(), { sx, sy, sc } = v;
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    if (o.foto) PLAN.photo(ctx, v); else PLAN.streets(ctx, v);
+    const [gx0, gz0] = gridToWorld(1, 0), [gx1, gz1] = gridToWorld(26, 18), grid = gridText.visible;
+    // la cuadrícula del mapa, con el borde del juego en rojo
+    if (grid) {
+      ctx.strokeStyle = 'rgba(255, 255, 255, .13)'; ctx.lineWidth = 1; ctx.beginPath();
+      for (let c = 1; c <= 26; c++) { const [a, b] = gridToWorld(c, 0), [d, e] = gridToWorld(c, 18); ctx.moveTo(sx(a), sy(b)); ctx.lineTo(sx(d), sy(e)); }
+      for (let r = 0; r <= 18; r++) { const [a, b] = gridToWorld(1, r), [d, e] = gridToWorld(26, r); ctx.moveTo(sx(a), sy(b)); ctx.lineTo(sx(d), sy(e)); }
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(227, 52, 42, .85)'; ctx.lineWidth = 1.6; ctx.strokeRect(sx(gx0), sy(gz0), sx(gx1) - sx(gx0), sy(gz1) - sy(gz0));
+    }
+    // zonas no accesibles
+    if (!hatch) { const k = document.createElement('canvas'); k.width = k.height = 10; const x = k.getContext('2d'); x.strokeStyle = 'rgba(255, 70, 60, .55)'; x.lineWidth = 2; x.beginPath(); x.moveTo(0, 10); x.lineTo(10, 0); x.stroke(); hatch = ctx.createPattern(k, 'repeat'); }
+    for (const z of ZONES) {
+      const p = EV.zones[z.id]; ctx.beginPath(); p.forEach(([x, q], i) => (i ? ctx.lineTo(sx(x), sy(q)) : ctx.moveTo(sx(x), sy(q)))); ctx.closePath();
+      ctx.fillStyle = hatch; ctx.fill(); ctx.strokeStyle = 'rgba(255, 70, 60, .9)'; ctx.lineWidth = 1.5; ctx.setLineDash([5, 4]); ctx.stroke(); ctx.setLineDash([]);
+    }
+    // columna y fila del buscador y casilla elegida
+    const band = (c0, r0, c1, r1) => { const [a, b] = gridToWorld(c0, r0), [d, e] = gridToWorld(c1, r1); ctx.fillRect(sx(a), sy(b), sx(d) - sx(a), sy(e) - sy(b)); };
+    ctx.fillStyle = 'rgba(255, 90, 68, .18)';
+    if (pick.col != null) band(pick.col, 0, pick.col + 1, 18);
+    if (pick.row != null) band(1, pick.row, 26, pick.row + 1);
+    const sc0 = U.uSel.value.x, sr0 = U.uSel.value.y;
+    if (sc0 > 0) {
+      ctx.fillStyle = 'rgba(255, 90, 68, .3)'; band(sc0, sr0, sc0 + 1, sr0 + 1);
+      const [a, b] = gridToWorld(sc0, sr0), [d, e] = gridToWorld(sc0 + 1, sr0 + 1); ctx.strokeStyle = '#ff5a44'; ctx.lineWidth = 2; ctx.strokeRect(sx(a), sy(b), sx(d) - sx(a), sy(e) - sy(b));
+    }
+    // sitios de referencia
+    if (sc >= 0.75) for (const m of MARKS) text(m.n, sx(m.x), sy(m.z) - 11, '#e8c88f', 13);
+    // puntos del evento y zonas no accesibles
+    for (const z of ZONES) { const p = EV.points[z.skull]; if (p) badge(sx(p.x), sy(p.z), 11, '#c4211a', 'zona'); }
+    for (const m of markers) { const X = sx(m.x), Y = sy(m.z); badge(X, Y, 13, m.col, m.key); if (sc >= 0.75) text(m.short || m.name, X, Y + 21, '#f4efe2', 13); }
+    o.extra?.(ctx, v, now);
+    // avisos y el grupo: círculo de precisión del GPS (los rótulos con las iniciales van encima)
+    for (const p of pings.values()) { const ph = (now / 1100) % 1, X = sx(p.x), Y = sy(p.z); ctx.beginPath(); ctx.arc(X, Y, 6 + ph * 22, 0, TAU); ctx.strokeStyle = p.col; ctx.globalAlpha = 1 - ph; ctx.lineWidth = 2.5; ctx.stroke(); ctx.globalAlpha = 1; ctx.beginPath(); ctx.arc(X, Y, 5, 0, TAU); ctx.fillStyle = p.col; ctx.fill(); }
+    const all = [...team.members.values()]; if (team.meEntry) all.push(team.meEntry);
+    for (const m of all) {
+      if (!m.av || !m.inside) continue;
+      const r = Math.min(m.acc || 10, 80) * sc; if (r < 10) continue;
+      ctx.beginPath(); ctx.arc(sx(m.x), sy(m.z), r, 0, TAU); ctx.globalAlpha = 0.14; ctx.fillStyle = m.col; ctx.fill(); ctx.globalAlpha = 1;
+    }
+    // franjas fijas: se lee la casilla sin tener que ir al borde del mapa
+    if (grid) {
+      ctx.fillStyle = 'rgba(11, 12, 15, .9)'; ctx.fillRect(0, BAR, W, NUM); ctx.fillRect(0, BAR + NUM, LET, H - BAR - NUM - BOT);
+      const cell = Math.abs(sx(gridToWorld(2, 0)[0]) - sx(gridToWorld(1, 0)[0])), st = cell < 11 ? 5 : cell < 20 ? 2 : 1;
+      ctx.font = '600 11px "IBM Plex Mono", ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      for (let c = 1; c <= 25; c++) {
+        const on = c === sc0 || c === pick.col; if (!on && (c - 1) % st) continue;
+        const X = sx(gridToWorld(c + 0.5, 0)[0]); if (X < LET || X > W) continue;
+        ctx.fillStyle = on ? '#ff8a66' : 'rgba(241, 234, 215, .75)'; ctx.fillText(String(c), X, BAR + NUM / 2 + 0.5);
+      }
+      for (let r = 0; r < 18; r++) {
+        const on = r === sr0 && sc0 > 0 || r === pick.row; if (!on && r % st) continue;
+        const Y = sy(gridToWorld(1, r + 0.5)[1]); if (Y < BAR + NUM || Y > H - BOT) continue;
+        ctx.fillStyle = on ? '#ff8a66' : 'rgba(241, 234, 215, .75)'; ctx.fillText(ROWS[r], LET / 2, Y + 0.5);
+      }
+      ctx.textAlign = 'left';
+    }
+  }
+  function frame(now) {
+    const active = busy() || now < power.wakeUntil;
+    if (!active && now - power.last < 1000 / (power.saver ? 1 : 15) - 4) return;
+    power.last = now;
+    const dt = Math.min(clock.getDelta(), 0.1); t += dt;
+    updateFlight(now); updateCam(dt); updateTeam(dt);
+    draw(now); labels2D();
+  }
+  // en el plano no hay rótulos altos: los del grupo y los avisos van pegados a su sitio; los puntos del evento los pinta el plano
+  function labels2D() {
+    const v = o.v; if (!v) return;
+    for (const L of labels) {
+      if (L.hide || L.kind !== 'member') { L.el.style.display = 'none'; continue; }
+      const x = v.sx(L.pos.x), y = v.sy(L.pos.z);
+      if (x < -40 || y < -40 || x > W + 40 || y > H + 40) { L.el.style.display = 'none'; continue; }
+      L.el.style.display = '';
+      L.el.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0) translate(-50%, ${L.el.classList.contains('ping') ? '-125%' : '-50%'})`;
+    }
+  }
+  // un toque en el plano: los números y las letras fijos, lo que añade la demo y los puntos del evento; lo demás, la casilla de siempre
+  function tap(px, py) {
+    const v = o.v; if (!v) return false;
+    if (gridText.visible && py >= BAR && py < BAR + NUM) { const c = Math.floor(worldToGrid(v.wx(px), gridToWorld(1, 9)[1])[0]); if (c >= 1 && c < 26) pickLabel(pick.col === c ? null : c, pick.row); return true; }
+    if (gridText.visible && px < LET && py >= BAR + NUM) { const r = Math.floor(worldToGrid(gridToWorld(13, 0)[0], v.wz(py))[1]); if (r >= 0 && r < 18) pickLabel(pick.col, pick.row === r ? null : r); return true; }
+    if (o.tapExtra?.(px, py, v)) return true;
+    const m = markers.find((q) => Math.hypot(v.sx(q.x) - px, v.sy(q.z) - py) < 18);
+    if (m) { const [u, w] = worldToGrid(m.x, m.z); if (pick.col != null || pick.row != null) setLines(null, null); selectCell(Math.floor(u), Math.floor(w)); onCellTapped(m); return true; }
+    return false;
+  }
+  function show(v) {
+    o.on = v; document.body.classList.toggle('plan2d', v);
+    if (v) { resize(); cam.rotAnim = null; applyCam(); o.v = view(); }
+    kick(1500);
+  }
+  function setFoto(v) { o.foto = v; $('#btn-foto').setAttribute('aria-pressed', String(v)); $('#lbl-foto').textContent = v ? 'Callejero' : 'Foto aérea'; kick(300); }
+  return Object.assign(o, { frame, tap, show, setFoto });
+})();
+$('#btn-foto').addEventListener('click', () => P2.setFoto(!P2.foto));
+
 function updateLabels() {
+  if (P2.on) return;
   const w = canvas.clientWidth, h = canvas.clientHeight;
   for (const L of labels) {
     if (L.hide || (L.kind === 'place' && !showNames)) { L.el.style.display = 'none'; continue; }
@@ -2494,6 +2766,7 @@ function frame() {
   requestAnimationFrame(frame);
   if (power.pocket) return;
   const now = performance.now();
+  if (P2.on) { P2.frame(now); return; }
   const active = busy() || now < power.wakeUntil;
   const idleFps = power.saver ? 1 : COARSE ? 30 : 60;
   if (!active && now - power.last < 1000 / idleFps - 4) return;
@@ -3446,7 +3719,7 @@ function showPing(m) {
   el.addEventListener('click', () => { flyTo(new THREE.Vector3(x, 0, z), 170, 52); toast(`Quitar el aviso de ${m.cell || 'aquí'}`, '#ff8a80', () => removePing(m.pid, true)); });
   const L = { el, pos: new THREE.Vector3(x, 30, z), kind: 'member', always: true };
   labelsEl.appendChild(el); labels.push(L);
-  pings.set(m.pid, { g, ring, L, ts: Date.now(), ttl: P.ttl, t, who: m.id });
+  pings.set(m.pid, { g, ring, L, ts: Date.now(), ttl: P.ttl, t, who: m.id, x, z, col: P.col || col });
   kick(1500);
 }
 async function removePing(pid, broadcast) {
@@ -3515,7 +3788,7 @@ if (MODE === 'artifact') {
 window.__pv.team = team; window.__pv.amb = amb;
 // vídeo de presentación y demo: sus guiones (tools/video.js, tools/demo.js) mueven estas piezas del mapa
 if (MODE === 'video' || MODE === 'demo') {
-  window.__pvApi = { THREE, D, EV, ROWS, cam, camera, canvas, applyCam, overview, kick, setSaver, power, U,
+  window.__pvApi = { THREE, D, EV, ROWS, PLAN, P2, cam, camera, canvas, applyCam, overview, kick, setSaver, power, U,
     gridToWorld, worldToGrid, cellName, edgeLabels, markers, target, selectCell, clearCell, setLines, setActs, pickLabel, cellInfo,
     team, ROSTER, placeEntry, placeMe, renderTeamList, updatePill, openTeam, closeSheets,
     showPing, dropPing, pings, PING, toast, onPing,
@@ -3569,7 +3842,7 @@ body.dm .hud { bottom: calc(var(--tab-h) + 80px); }
 #dm-map { position: absolute; inset: 0; width: 100%; height: 100%; display: none; touch-action: none; background: #0b0d11; z-index: 2; }
 body.dm-org #dm-map { display: block; }
 body.dm-org #gl, body.dm-org #labels, body.dm-org .vignette, body.dm-org .compass, body.dm-org .tabbar, body.dm-org #hud,
-body.dm-org .brand, body.dm-org .dm-tip, body.dm-org .credits, body.dm-org #team-pill { display: none !important; }
+body.dm-org .brand, body.dm-org .dm-tip, body.dm-org .credits, body.dm-org #team-pill, body.dm-org #plan, body.dm-org .plan-bar { display: none !important; }
 
 #cp { position: absolute; inset: 0; z-index: 6; display: none; pointer-events: none; font-family: var(--f-body); color: var(--bone); -webkit-tap-highlight-color: transparent; }
 body.dm-org #cp { display: block; }
@@ -3719,7 +3992,7 @@ window.__pvRoutes = {
 </script>
 <script type="module">
 // Demo en vivo del mapa del Survival Zombie (demo.html), para enseñarla a la organización: el mapa de verdad con un grupo
-// simulado (vista de jugador) y la vista de organización para mover a la gente (tools/org.js).
+// simulado (vista de jugador) y la vista de organización: avisos a los grupos y zombis (tools/org.js).
 // Todo es local: no se conecta a nada; los compañeros, los grupos, los zombis, los avisos y las incidencias son de mentira.
 const V = await new Promise((res) => { const iv = setInterval(() => { if (window.__pvApi) { clearInterval(iv); res(window.__pvApi); } }, 40); });
 const { THREE } = V;
@@ -4103,7 +4376,7 @@ const ZONES = [
   { id: 3, name: 'Check-in · Claretianos', kind: 'segura', c: { x: P.checkin.x, z: P.checkin.z, r: 30 }, on: true },
   { id: 4, name: 'Avituallamiento · plaza de España', kind: 'segura', c: { x: P.avituallamiento.x, z: P.avituallamiento.z, r: 28 }, on: true },
 ];
-const SIM = { smart: false, testsSafe: true, avit: true, zoneN: 4, incN: 0, nN: 0, nextInc: CLK.t + 1e9, firstInc: true, lostAt: CLK.t + 170, hist: [], histT: 0, ended: false };
+const SIM = { reads: [], smart: false, testsSafe: true, avit: true, zoneN: 4, incN: 0, nN: 0, nextInc: CLK.t + 1e9, firstInc: true, lostAt: CLK.t + 170, hist: [], histT: 0, ended: false };
 const [gA, gB] = [V.gridToWorld(1, 0), V.gridToWorld(26, 18)];
 const GBX = { x0: Math.min(gA[0], gB[0]), x1: Math.max(gA[0], gB[0]), z0: Math.min(gA[1], gB[1]), z1: Math.max(gA[1], gB[1]) };
 const outside = (g) => g.x < GBX.x0 || g.x > GBX.x1 || g.z < GBX.z0 || g.z > GBX.z1 || (!NAV.ok(g.x, g.z) && FUERA.some((p) => inPoly(g.x, g.z, p)));
@@ -4325,10 +4598,7 @@ function stepZones(t) {
   for (const z of ZONES) if (z.on && z.kind === 'cerrada' && z.until && t > z.until) openZone(z, true);
 }
 function autoEvents(t) {
-  if (false && SIM.lostG && t > SIM.lostAt && SIM.lostG.st === 'roam') {   // un grupo se despista y sube al cerro
-    const g = SIM.lostG; SIM.lostG = null; leaveTest(g); g.st = 'lost'; stopW(g);
-    g.path = [{ x: g.x, z: g.z }, { x: -118, z: -362 }, { x: -105, z: -392 }]; g.pi = 1; g.v = 1.3;
-  }
+  stepReads(t);
   if (t > SIM.nextInc) {
     SIM.nextInc = t + (15 + Math.random() * 15) * 60;   // de vez en cuando alguien pulsa el SOS
     simInc('lesion');
@@ -4547,11 +4817,10 @@ function simTick(dtReal) {
   runPQ();
 }
 
-// ---------------------------------------------------------------- interfaz: mover a la gente
-// Íñigo (4-nov): seis secciones con decenas de opciones eran demasiado y no lo iban a usar. Lo que necesita la organización
-// es mover a la gente con comodidad: elegir a quién (tocando grupos, la fila de una prueba, una horda, rodeando una zona
-// con el dedo o todos), tocar adónde (un punto del plano o una prueba) y enviar. Les llega al móvil y van andando por las
-// calles, a su paso de verdad (el reloj va en tiempo real). Si alguien pulsa el SOS, sale arriba con un botón para mandar ayuda.
+// ---------------------------------------------------------------- interfaz: avisar a la gente
+// Íñigo (4-nov): seis secciones eran demasiado, y la organización no mueve a nadie a la fuerza. A los jugadores solo se les avisa
+// («La Farmacia está libre», con la prueba marcada en su mapa) y cada grupo decide: unos van y otros no. A los zombis se les dice
+// por walkie hacia dónde irse. Todo en tiempo real. Si alguien pulsa el SOS, sale arriba con un botón para mandar ayuda.
 const IC = {
   layers: 'M12 3 2 8l10 5 10-5z M2 12.5l10 5 10-5 M2 17l10 5 10-5',
   frame: 'M4 9V4h5 M15 4h5v5 M20 15v5h-5 M9 20H4v-5',
@@ -4590,88 +4859,74 @@ function say(txt, kind = '') {
 function sentFx() { sfx([[988, 0.1, 0.02, 0.07], [1318, 0.12, 0.15, 0.07]]); try { navigator.vibrate?.(40); } catch (e) { /* opcional */ } }
 function radioFx() { sfx([[440, 0.07, 0, 0.06], [330, 0.1, 0.09, 0.06]]); }
 
-// ---------------------------------------------------------------- mover: a quién, adónde y enviar
-// st: idle (nada elegido), area (rodeando), sel (grupos elegidos: falta a qué prueba), dest (horda elegida: falta adónde), ok (listo)
-// A los grupos solo se les puede mandar a otra prueba (Íñigo, 4-nov: la organización no puede decirles «id a tal sitio»);
-// a una horda sí, a cualquier punto: se lo dicen a su jefe por el walkie.
-const MV = { st: 'idle', gs: [], z: null, dest: null, lasso: null };
-const GOING = [];   // lo enviado que aún va de camino
-const who = () => (MV.z ? `${MV.z.name} (${MV.z.n} zombis)` : `${pl(MV.gs.length, 'grupo', 'grupos')} · ${pl(people(MV.gs), 'persona', 'personas')}`);
-const destName = (d) => (d.test ? d.test.name : placeOf(d) || (cellAt(d.x, d.z) !== '—' ? `la celda ${cellAt(d.x, d.z)}` : 'el punto marcado'));
-const msgFor = (d) => (d.test ? `Id a ${d.test.name}: ${waitOf(d.test) ? `unos ${waitOf(d.test)} min de espera` : 'está sin cola'}` : destName(d) === 'el punto marcado' ? 'Id al punto marcado en el mapa' : `Id al punto marcado en el mapa (${destName(d)})`);
-// las pruebas a las que mejor pueden ir: menos espera y más cerca (sin la de la fila de la que salen)
-function bestTests() {
-  const c = selCenter(), from = MV.gs.length && MV.gs.every((g) => g.test && g.test === MV.gs[0].test) ? MV.gs[0].test : null;
-  return TESTS.filter((t) => t.st === 'abierta' && t !== from).sort((a, b) => (waitOf(a) + dist(c, a) / 70) - (waitOf(b) + dist(c, b) / 70)).slice(0, 4);
-}
-function selCenter() { const L = MV.z ? [MV.z] : MV.gs; return { x: L.reduce((a, g) => a + g.x, 0) / L.length, z: L.reduce((a, g) => a + g.z, 0) / L.length }; }
+// ---------------------------------------------------------------- avisar: qué prueba, a quién y enviar
+// st: idle (nada elegido), who (prueba elegida: falta a quién), area (rodeando grupos), ok (aviso listo), zdest (horda: falta hacia dónde), zok (orden lista)
+const MV = { st: 'idle', t: null, gs: [], who: '', z: null, dest: null, lasso: null };
+const GOING = [];   // avisos recién mandados: a cuántos llegó y cuántos han hecho caso
+const WALK = 220;   // «grupos cercanos»: a menos de estos metros de la prueba
+const msgFor = (t) => (waitOf(t) ? `${t.name}: solo ${waitOf(t)} min de espera` : `${t.name} está libre: sin cola ahora mismo`);
+const freeTests = () => TESTS.filter((t) => t.st === 'abierta').sort((a, b) => waitOf(a) - waitOf(b)).slice(0, 3);
+// a quién le puede interesar: quien no la ha hecho ya, ni está dentro de una prueba ni pidiendo ayuda
+const canGo = (g, t) => g.st !== 'out' && g.st !== 'sos' && g.st !== 'inTest' && g.test !== t && !g.done.some((d) => d.id === t.id);
+const nearGroups = (t) => GROUPS.filter((g) => canGo(g, t) && dist(g, t) < WALK);
+const longQueue = (t) => TESTS.filter((q) => q !== t && q.st === 'abierta' && q.queue.length >= 2 && waitOf(q) > waitOf(t) + 5).sort((a, b) => waitOf(b) - waitOf(a))[0];
 function renderBar() {
   let h = '';
-  if (MV.st === 'idle') h = `<div class="tx"><b>¿Qué grupos mandas a otra prueba?</b><small>Haz clic en una prueba para mover su fila, o en un grupo; para varios, arrastra con Mayús pulsada a su alrededor. Una horda se mueve haciendo clic en ella.</small></div>
-    <div class="bt">${btn(`${svg('lasso')}Rodear varios grupos`, 'mv-area', '', 'go')}</div>`;
-  else if (MV.st === 'area') h = `<div class="tx"><b>Rodea a los grupos que quieres mover</b><small>Arrastra el ratón alrededor de ellos</small></div>
+  if (MV.st === 'idle') h = `<div class="tx"><b>¿Qué prueba tiene hueco?</b><small>Elige una para avisar a los grupos, aquí o en el plano. Para mover zombis, haz clic en una horda.</small></div>
+    <div class="bt tests">${freeTests().map((t) => btn(`${esc(t.name)}<span>${waitOf(t) ? `${waitOf(t)} min` : 'libre'}</span>`, 'mv-t', t.id)).join('')}</div>`;
+  else if (MV.st === 'who') {
+    const n = nearGroups(MV.t), q = longQueue(MV.t);
+    h = `<button type="button" class="cp-cx" data-act="mv-x">Cancelar <kbd>Esc</kbd></button><div class="tx"><b>«${esc(msgFor(MV.t))}»</b><small>¿A quién se lo avisas?</small></div>
+    <div class="bt tests">${btn(`Grupos cercanos<span>${n.length}</span>`, 'mv-near')}${q ? btn(`Fila de ${esc(q.name)}<span>${q.queue.length} · ${waitOf(q)} min</span>`, 'mv-q', q.id) : ''}${btn(`${svg('lasso')}Rodear grupos`, 'mv-area')}</div>`;
+  } else if (MV.st === 'area') h = `<div class="tx"><b>Rodea a los grupos a los que quieres avisar</b><small>Arrastra el ratón alrededor de ellos</small></div>
     <div class="bt">${btn('Cancelar', 'mv-x')}</div>`;
-  else if (MV.st === 'sel') h = `<button type="button" class="cp-cx" data-act="mv-x">Cancelar <kbd>Esc</kbd></button><div class="tx"><b>${who()}</b><small>¿A qué prueba van? Elige una aquí o haz clic en ella en el plano (clic en más grupos para añadirlos)</small></div>
-    <div class="bt tests">${MV.gs.length >= 3 ? btn(`${svg('send')}Repartirlos entre las que menos esperan`, 'mv-split', '', 'go wide') : ''}${bestTests().map((t) => btn(`${esc(t.name)}<span>${waitOf(t) ? `${waitOf(t)} min` : 'libre'}</span>`, 'mv-to', t.id)).join('')}</div>`;
-  else if (MV.st === 'dest') h = `<div class="tx"><b>${who()}</b><small>Ahora haz clic en adónde va</small></div>
+  else if (MV.st === 'ok') h = `<div class="tx"><b>«${esc(msgFor(MV.t))}»</b><small>Para ${MV.who}: ${pl(MV.gs.length, 'grupo', 'grupos')}, ${pl(people(MV.gs), 'persona', 'personas')}. Les llega al móvil con la prueba marcada en su mapa; cada grupo decide si va.</small></div>
+    <div class="bt">${btn(`${svg('send')}Enviar aviso <kbd>Intro</kbd>`, 'mv-go', '', 'go')}${btn('Cancelar <kbd>Esc</kbd>', 'mv-x')}</div>`;
+  else if (MV.st === 'zdest') h = `<div class="tx"><b>${MV.z.name} · ${MV.z.n} zombis</b><small>Haz clic hacia dónde quieres que se vaya</small></div>
     <div class="bt">${btn('Cancelar', 'mv-x')}</div>`;
-  else if (MV.st === 'ok') {
-    const d = dist(selCenter(), MV.dest) * 1.3, m = Math.max(1, Math.round(d / (MV.z ? 2.2 : 1.8) / 60)), t = MV.dest.test;
-    const after = t ? waitOf(t) + Math.round(MV.gs.length / t.cap * t.dur) : 0;
-    h = `<div class="tx"><b>${who()} → ${esc(destName(MV.dest))}</b><small>A unos ${Math.round(d / 10) * 10} m: llegan en unos ${m} min.
-      ${MV.z ? `Se lo dices a ${MV.z.jefe}, su jefe, por el walkie.` : `Allí la espera pasará de ${waitOf(t) ? `${waitOf(t)} min` : 'nada'} a unos ${after} min. Les llega al móvil: «${esc(msgFor(MV.dest))}».`}</small></div>
-      <div class="bt">${btn(`${svg('send')}Enviar <kbd>Intro</kbd>`, 'mv-go', '', 'go')}${btn('Cancelar <kbd>Esc</kbd>', 'mv-x')}</div>`;
-  }
+  else if (MV.st === 'zok') h = `<div class="tx"><b>${MV.z.name} → ${esc(zName(MV.dest))}</b><small>Se lo dices a ${MV.z.jefe}, su jefe, por el walkie: «Moveos hacia ${esc(zName(MV.dest))}».</small></div>
+    <div class="bt">${btn(`${svg('send')}Decírselo <kbd>Intro</kbd>`, 'mv-go', '', 'go')}${btn('Cancelar <kbd>Esc</kbd>', 'mv-x')}</div>`;
   const b = q$('.cp-bar'); if (b.dataset.h !== h) { b.innerHTML = h; b.dataset.h = h; MAP.layout(); }
-  root.classList.toggle('picking', MV.st === 'area' || MV.st === 'dest' || MV.st === 'sel');
+  root.classList.toggle('picking', MV.st !== 'idle');
 }
-function selectGroups(gs, thenDest) {
-  MV.gs = gs.filter((g) => g.st !== 'out' && g.st !== 'sos'); MV.z = null; MV.dest = null;
-  MV.st = MV.gs.length ? 'sel' : 'idle';
-  if (!MV.gs.length) say('Ahí no hay nadie a quien mover');
+const zName = (d) => placeOf(d) || (cellAt(d.x, d.z) !== '—' ? `la celda ${cellAt(d.x, d.z)}` : 'ese punto');
+function pickTest(t) { Object.assign(MV, { st: MV.gs.length ? 'ok' : 'who', t, z: null, dest: null }); renderBar(); }
+function pickWho(gs, who) {
+  const t = MV.t; MV.gs = gs.filter((g) => canGo(g, t)); MV.who = who; MV.st = MV.gs.length ? 'ok' : 'who';
+  if (!MV.gs.length) say('Ahí no hay grupos a los que avisar');
   renderBar();
 }
-function selectHorde(z) { MV.gs = []; MV.z = z; MV.dest = null; MV.st = 'dest'; renderBar(); }
-function setDest(p, t) { MV.dest = t ? { x: t.x, z: t.z, test: t } : { x: p.x, z: p.z }; MV.st = 'ok'; renderBar(); }
-function cancelMove() { Object.assign(MV, { st: 'idle', gs: [], z: null, dest: null, lasso: null }); renderBar(); }
+function pickHorde(z) { Object.assign(MV, { st: 'zdest', z, t: null, gs: [], dest: null }); renderBar(); }
+function setDest(p) { MV.dest = { x: p.x, z: p.z }; MV.st = 'zok'; renderBar(); }
+function cancelMove() { Object.assign(MV, { st: 'idle', t: null, gs: [], who: '', z: null, dest: null, lasso: null }); renderBar(); }
+// el aviso solo informa: cada grupo lo lee cuando lo lee y decide. Se animan más los que llevan mucha cola y los que están cerca
+function willGo(g, t) {
+  const q = g.st === 'queue' && g.test ? Math.min(0.75, 0.25 + (waitOf(g.test) - waitOf(t)) / 40) : 0;
+  return Math.random() < Math.max(q, 0.45 * (1 - dist(g, t) / 500));
+}
 function sendMove() {
-  const d = MV.dest, ids = MV.gs.map((g) => g.id);
-  if (MV.z) { hordeGo(MV.z, d, 'patrol', true); GOING.unshift({ z: MV.z, d, name: destName(d), t0: CLK.t }); radioFx(); say(`Orden a ${MV.z.jefe} por el walkie: a ${destName(d)}`, 'ok'); }
-  else {
-    for (const g of MV.gs) { leaveTest(g); goTest(g, d.test, true); }
-    sendNotice({ txt: msgFor(d), kind: 'imp', to: { type: 'groups', ids }, pt: { x: d.x, z: d.z }, quiet: true });
-    GOING.unshift({ gs: MV.gs.slice(), d, name: destName(d), t0: CLK.t });
-    say(`Enviado a ${pl(ids.length, 'grupo', 'grupos')}: van a ${destName(d)}`, 'ok'); sentFx();
-  }
-  if (GOING.length > 3) GOING.length = 3;
+  if (MV.st === 'zok') { const z = MV.z, d = MV.dest; hordeGo(z, d, 'patrol', true); radioFx(); say(`${z.jefe} por el walkie: «Vamos para ${zName(d)}»`, 'ok'); cancelMove(); return; }
+  if (MV.st !== 'ok') return;
+  const t = MV.t, gs = MV.gs.slice(), o = { t, sent: gs.length, go: [], t0: CLK.t, pend: gs.length };
+  sendNotice({ txt: msgFor(t), kind: 'info', to: { type: 'groups', ids: gs.map((g) => g.id) }, pt: { x: t.x, z: t.z }, quiet: true });
+  for (const g of gs) SIM.reads.push({ g, t, o, at: CLK.t + 15 + Math.random() * 100 });
+  GOING.unshift(o); if (GOING.length > 3) GOING.length = 3;
+  say(`Aviso enviado a ${pl(gs.length, 'grupo', 'grupos')}`, 'ok'); sentFx();
   cancelMove();
 }
-// muchos grupos a la vez: cada uno a la prueba en la que antes empezaría (camino + espera, contando a los que ya van)
-function splitMove() {
-  const from = MV.gs.every((g) => g.test && g.test === MV.gs[0].test) ? MV.gs[0].test : null;
-  const open = TESTS.filter((t) => t.st === 'abierta' && t !== from); if (!open.length) return;
-  const extra = new Map(open.map((t) => [t, 0])), by = new Map();
-  for (const g of MV.gs.slice().sort((a, b) => a.id - b.id)) {
-    const t = open.reduce((a, b) => ((waitOf(b) + extra.get(b) / b.cap * b.dur + dist(g, b) / 70) < (waitOf(a) + extra.get(a) / a.cap * a.dur + dist(g, a) / 70) ? b : a));
-    extra.set(t, extra.get(t) + 1); if (!by.has(t)) by.set(t, []); by.get(t).push(g);
+function stepReads(now) {
+  for (let i = SIM.reads.length - 1; i >= 0; i--) {
+    const r = SIM.reads[i]; if (now < r.at) continue;
+    SIM.reads.splice(i, 1); r.o.pend--;
+    if (r.t.st === 'abierta' && canGo(r.g, r.t) && willGo(r.g, r.t)) { leaveTest(r.g); goTest(r.g, r.t, true); r.o.go.push(r.g); }
   }
-  for (const [t, gs] of by) {
-    const d = { x: t.x, z: t.z, test: t };
-    sendNotice({ txt: msgFor(d), kind: 'imp', to: { type: 'groups', ids: gs.map((g) => g.id) }, pt: { x: t.x, z: t.z }, quiet: true });
-    for (const g of gs) { leaveTest(g); goTest(g, t, true); }
-    GOING.unshift({ gs, d, name: t.name, t0: CLK.t });
-  }
-  if (GOING.length > 3) GOING.length = 3;
-  say(`${pl(MV.gs.length, 'grupo repartido', 'grupos repartidos')}: ${[...by].map(([t, gs]) => `${gs.length} a ${t.name}`).join(', ')}`, 'ok'); sentFx();
-  cancelMove();
 }
-// lo que va de camino: cuántos han llegado ya
-const arrived = (o) => (o.z ? (o.z.st !== 'go' ? 1 : 0) : o.gs.filter((g) => (o.d.test ? g.test === o.d.test && g.st !== 'toTest' : g.st !== 'called') || g.st === 'out').length);
+// lo que ha pasado con los avisos: cuántos han hecho caso
 function renderGoing() {
-  for (let i = GOING.length - 1; i >= 0; i--) { const o = GOING[i], n = o.z ? 1 : o.gs.length; if (arrived(o) >= n || CLK.t - o.t0 > 1200) GOING.splice(i, 1); }
+  for (let i = GOING.length - 1; i >= 0; i--) if (CLK.t - GOING[i].t0 > 420) GOING.splice(i, 1);
   const h = GOING.map((o) => {
-    const n = o.z ? 1 : o.gs.length, a = arrived(o);
-    return `<div class="cp-go"><i></i><span>${o.z ? `${esc(o.z.name)} va a ${esc(o.name)}` : `${a} de ${n} ${n === 1 ? 'grupo' : 'grupos'} en ${esc(o.name)}`}</span></div>`;
+    const inLine = o.go.filter((g) => g.test === o.t && g.st !== 'toTest').length;
+    return `<div class="cp-go"><i></i><span>Aviso de ${esc(o.t.name)} a ${pl(o.sent, 'grupo', 'grupos')}: ${o.go.length ? `${o.go.length} ${o.go.length === 1 ? 'va' : 'van'}${inLine ? `, ${inLine} ya allí` : ''}` : o.pend ? 'leyéndolo…' : 'nadie se ha animado'}</span></div>`;
   }).join('');
   const el = q$('.cp-going'); if (el.dataset.h !== h) { el.innerHTML = h; el.dataset.h = h; }
 }
@@ -4686,9 +4941,10 @@ function renderSOS() {
   el.hidden = false; if (el.dataset.h !== h) { el.innerHTML = h; el.dataset.h = h; }
 }
 const ACT = {
-  'mv-area': () => { cancelMove(); MV.st = 'area'; renderBar(); },
-  'mv-split': () => splitMove(),
-  'mv-to': (a) => { const t = TESTS[+a - 1]; if (t) setDest(t, t); },
+  'mv-t': (a) => pickTest(TESTS[+a - 1]),
+  'mv-near': () => pickWho(nearGroups(MV.t), 'los grupos cercanos'),
+  'mv-q': (a) => { const q = TESTS[+a - 1]; pickWho(q.queue.slice(), `la fila de ${q.name}`); },
+  'mv-area': () => { MV.st = 'area'; renderBar(); },
   'mv-x': () => cancelMove(),
   'mv-go': () => sendMove(),
   'sos-go': (a) => { const [i, s] = a.split('|').map(Number), inc = INCS.find((x) => x.id === i); assignInc(inc, STAFF[s - 1]); renderSOS(); MAP.fit([STAFF[s - 1], inc.g || inc]); },
@@ -4701,7 +4957,7 @@ const ACT = {
 addEventListener('keydown', (e) => {
   if (view !== 'org' || /INPUT|TEXTAREA/.test(document.activeElement?.tagName || '')) return;
   if (e.key === 'Escape') cancelMove();
-  else if (e.key === 'Enter' && MV.st === 'ok') { e.preventDefault(); sendMove(); }
+  else if (e.key === 'Enter' && (MV.st === 'ok' || MV.st === 'zok')) { e.preventDefault(); sendMove(); }
 });
 root.addEventListener('click', (e) => {
   const b = e.target.closest('[data-act]'); if (!b || !root.contains(b)) return;
@@ -4713,7 +4969,7 @@ root.addEventListener('click', (e) => {
 const LAYN = [['foto', 'Foto aérea (si no, callejero)', '#6d7a5a'], ['heat', 'Calor de gente', 'linear-gradient(90deg,rgba(255,190,60,.5),#ff8c1e,#f02828)'], ['hordes', 'Zombis', ZCOL], ['grid', 'Cuadrícula', 'rgba(255,255,255,.35)']];
 function renderLayers() {
   q$('.cp-layers').innerHTML = `<b>Capas</b>${LAYN.map(([k, l, c]) => `<label><input type="checkbox" data-act="lay" data-a="${k}" ${MAP.LAY[k] ? 'checked' : ''}><i style="background:${c}"></i>${l}</label>`).join('')}
-  <div class="cp-leg"><b>Grupos</b><span><i style="background:#f3ead6"></i>Por la calle</span><span><i style="background:#8fdc2c"></i>En una prueba o en su fila</span><span><i style="background:#ffd21f"></i>Van adonde les has mandado</span><span><i style="background:#ff3b30"></i>SOS</span></div>`;
+  <div class="cp-leg"><b>Grupos</b><span><i style="background:#f3ead6"></i>Por la calle</span><span><i style="background:#8fdc2c"></i>En una prueba o en su fila</span><span><i style="background:#ffd21f"></i>Van por un aviso</span><span><i style="background:#ff3b30"></i>SOS</span></div>`;
 }
 function updTop() {
   q$('.cp-clock').textContent = hhmm(CLK.t);
@@ -4727,61 +4983,6 @@ const MAP = (() => {
   const ctx = cv.getContext('2d'), D = V.D;
   const GB = GBX, BB = { x0: D.det[0], x1: D.det[2], z0: D.det[1], z1: D.det[3] };
   const LAY = { foto: desk(), heat: true, groups: true, hordes: true, staff: true, tests: true, points: true, zones: true, grid: true };
-  // callejero (como un mapa de calles, el de por defecto en el móvil): calles claras con su nombre, manzanas oscuras y lisas,
-  // plazas, jardines y el río; las calles principales se ven aunque se aleje el plano. La foto aérea queda como capa.
-  const CC = { land: '#343b48', out: '#16181d', block: '#1e2229', church: '#4a3a24', plaza: '#3d4555', green: '#22382e', water: '#1a3a56' };
-  const RW = [9, 8, 5.5, 4, 3.5, 2], RMIN = [3.4, 3, 1.7, 1.4, 1.1, 0.8], RCOL = ['#8590a3', '#78839a', '#4f586c', '#4a5367', '#454e60', '#434c5d'];
-  const ROADS = (D.roads2d || []).slice().sort((a, b) => b.c - a.c);
-  const BLD = D.buildings.filter((q) => !q.inv).map((q) => { let x0 = 1e9, z0 = 1e9, x1 = -1e9, z1 = -1e9; for (let i = 0; i < q.p.length; i += 2) { x0 = Math.min(x0, q.p[i]); x1 = Math.max(x1, q.p[i]); z0 = Math.min(z0, q.p[i + 1]); z1 = Math.max(z1, q.p[i + 1]); } return { p: q.p, k: q.k, b: [x0, z0, x1, z1] }; });
-  // nombres de calle: el tramo recto más largo de cada calle (hasta dos sitios por calle, lejos uno de otro)
-  const LBL = [];
-  {
-    const by = new Map();
-    for (const r of D.roads2d || []) {
-      if (!r.n || r.c > 3) continue;
-      for (let i = 0; i + 3 < r.p.length; i += 2) {
-        const x0 = r.p[i], z0 = r.p[i + 1], x1 = r.p[i + 2], z1 = r.p[i + 3], len = Math.hypot(x1 - x0, z1 - z0); if (len < 22) continue;
-        let a = Math.atan2(z1 - z0, x1 - x0); if (a > Math.PI / 2) a -= Math.PI; if (a < -Math.PI / 2) a += Math.PI;
-        if (!by.has(r.n)) by.set(r.n, []); by.get(r.n).push({ n: r.n.replace(/^Avenida /, 'Av. '), x: (x0 + x1) / 2, z: (z0 + z1) / 2, a, len, c: r.c });
-      }
-    }
-    for (const l of by.values()) { l.sort((a, b) => b.len - a.len); const keep = [l[0]]; for (const o of l) if (keep.length < 2 && keep.every((k) => Math.hypot(k.x - o.x, k.z - o.z) > 160)) keep.push(o); LBL.push(...keep); }
-    LBL.sort((a, b) => a.c - b.c || b.len - a.len);
-  }
-  const lblW = new Map();
-  // plano base: la ortofoto oscurecida, el agua y las huellas de los edificios (iglesias y monumentos en ámbar); se pinta una vez
-  const BPM = 1.6, base = document.createElement('canvas'), bld = document.createElement('canvas'), BPB = 1.8;
-  bld.width = Math.round((BB.x1 - BB.x0) * BPB); bld.height = Math.round((BB.z1 - BB.z0) * BPB);
-  {   // manzanas del callejero (solo los edificios, fondo transparente): de lejos se pinta esta imagen; de cerca, cada edificio
-    const b = bld.getContext('2d');
-    for (const q of BLD) { b.beginPath(); for (let i = 0; i < q.p.length; i += 2) (i ? b.lineTo : b.moveTo).call(b, (q.p[i] - BB.x0) * BPB, (q.p[i + 1] - BB.z0) * BPB); b.closePath(); b.fillStyle = q.k === 4 ? CC.church : CC.block; b.fill(); }
-  }
-  base.width = Math.round((BB.x1 - BB.x0) * BPM); base.height = Math.round((BB.z1 - BB.z0) * BPM);
-  let baseReady = false;
-  const img = new Image(); img.onload = paintBase; img.src = 'assets/ortho.jpg';
-  const wideImg = new Image(); wideImg.src = 'assets/ortho_wide.jpg';
-  function paintBase() {
-    const b = base.getContext('2d'), det = D.det;
-    const bx = (x) => (x - BB.x0) * BPM, bz = (z) => (z - BB.z0) * BPM;
-    const poly = (p) => { b.beginPath(); for (let i = 0; i < p.length; i += 2) (i ? b.lineTo : b.moveTo).call(b, bx(p[i]), bz(p[i + 1])); b.closePath(); };
-    b.fillStyle = '#0b0d11'; b.fillRect(0, 0, base.width, base.height);
-    b.drawImage(img, bx(det[0]), bz(det[1]), (det[2] - det[0]) * BPM, (det[3] - det[1]) * BPM);
-    b.fillStyle = 'rgba(9, 11, 15, 0.66)'; b.fillRect(0, 0, base.width, base.height);
-    b.fillStyle = 'rgba(46, 120, 170, 0.5)'; for (const w of D.water) { poly(w.p); b.fill(); }
-    b.lineWidth = 1;
-    for (const q of D.buildings) {
-      if (q.inv) continue; poly(q.p);
-      if (q.k === 4) { b.fillStyle = 'rgba(255, 178, 63, 0.34)'; b.strokeStyle = 'rgba(255, 190, 90, 0.8)'; } else { b.fillStyle = 'rgba(232, 228, 216, 0.11)'; b.strokeStyle = 'rgba(232, 228, 216, 0.22)'; }
-      b.fill(); b.stroke();
-    }
-    for (const m of D.monuments || []) {
-      b.strokeStyle = 'rgba(255, 190, 90, 0.85)'; b.fillStyle = 'rgba(255, 178, 63, 0.22)'; b.lineWidth = 1.5;
-      if (m.t === 'castle') { poly(m.p); b.fill(); b.stroke(); }
-      else if (m.t === 'ring') { b.beginPath(); b.arc(bx(m.x), bz(m.z), m.ro * BPM, 0, TAU); b.arc(bx(m.x), bz(m.z), m.ri * BPM, 0, TAU, true); b.fill(); b.stroke(); }
-      else { b.fillStyle = 'rgba(255, 205, 120, 0.95)'; b.beginPath(); b.arc(bx(m.x), bz(m.z), (m.r || m.s / 2) * BPM, 0, TAU); b.fill(); }
-    }
-    baseReady = true;
-  }
   // mapa de calor: rejilla de 4 m, núcleo gaussiano; se rehace cada medio segundo
   const HC = 4, HW = Math.ceil((BB.x1 - BB.x0) / HC), HH = Math.ceil((BB.z1 - BB.z0) / HC);
   const heat = new Float32Array(HW * HH), hcv = document.createElement('canvas'); hcv.width = HW; hcv.height = HH;
@@ -4828,7 +5029,7 @@ const MAP = (() => {
     q$('.cp-layers').hidden = true;
     if (ptr.size === 1) gest = { t0: performance.now(), x0: e.clientX, y0: e.clientY, moved: false }; else if (gest) gest.moved = true;
     const r = cv.getBoundingClientRect();
-    if (e.shiftKey && e.pointerType === 'mouse' && MV.st !== 'area') { cancelMove(); MV.st = 'area'; renderBar(); }
+    if (e.shiftKey && e.pointerType === 'mouse' && MV.st === 'who') { MV.st = 'area'; renderBar(); }
     if (MV.st === 'area' && ptr.size === 1) MV.lasso = [[e.clientX - r.left, e.clientY - r.top]]; else MV.lasso = null;
   });
   cv.addEventListener('pointermove', (e) => {
@@ -4841,9 +5042,9 @@ const MAP = (() => {
   const lift = (e) => {
     if (MV.lasso && MV.st === 'area') {   // cerrar el lazo y elegir a los que han quedado dentro
       const L = MV.lasso; MV.lasso = null; ptr.delete(e.pointerId); gest = null; pinch = null;
-      if (L.length < 4) return;
+      if (L.length < 4) { MV.st = 'who'; renderBar(); return; }
       const inL = (x, y) => { let c = false; for (let i = 0, j = L.length - 1; i < L.length; j = i++) { const [xi, yi] = L[i], [xj, yj] = L[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c; } return c; };
-      selectGroups(GROUPS.filter((g) => g.st !== 'out' && inL(sx(g.sig ? g.x : g.sx), sy(g.sig ? g.z : g.sz))));
+      pickWho(GROUPS.filter((g) => inL(sx(g.sig ? g.x : g.sx), sy(g.sig ? g.z : g.sz))), 'los grupos elegidos');
       return;
     }
     ptr.delete(e.pointerId); pinch = null; if (!ptr.size && gest && !gest.moved && performance.now() - gest.t0 < 450) { const r = cv.getBoundingClientRect(); tap(e.clientX - r.left, e.clientY - r.top); } if (!ptr.size) gest = null; };
@@ -4852,11 +5053,11 @@ const MAP = (() => {
   function hoverAt(px, py) {
     const near = (q, r) => Math.hypot(sx(q.x) - px, sy(q.z) - py) < r, mv = MV.st === 'idle';
     const inc = INCS.find((i) => i.st !== 'resuelta' && i.prio === 3 && near(i.g || i, 18)); if (inc) return `<b>SOS${inc.g ? ` · ${esc(gName(inc.g))}` : ''}</b>${esc(inc.txt)}`;
-    if (LAY.hordes) { const z = HORDES.find((q) => near(q, 16)); if (z) return `<b>${z.name}</b>${z.n} zombis · jefe: ${z.jefe}${mv ? '<em>Clic para moverla</em>' : ''}`; }
+    if (LAY.hordes) { const z = HORDES.find((q) => near(q, 16)); if (z) return `<b>${z.name}</b>${z.n} zombis · jefe: ${z.jefe}${mv ? '<em>Clic para mandarla a otro lado</em>' : ''}`; }
     const t = TESTS.find((q) => near(q, 16));
-    if (t) return `<b>${t.name}</b>${t.st !== 'abierta' ? (t.st === 'bloqueada' ? `se abre a las ${hhmm(t.lock)}` : t.st) : t.queue.length ? `${pl(t.queue.length, 'grupo', 'grupos')} en la fila · unos ${waitOf(t)} min` : 'sin cola'}${t.st === 'abierta' ? (mv ? (t.queue.length ? '<em>Clic para mandar su fila a otra prueba</em>' : '') : MV.z ? '' : '<em>Clic para mandarlos aquí</em>') : ''}`;
+    if (t) return `<b>${t.name}</b>${t.st !== 'abierta' ? (t.st === 'bloqueada' ? `se abre a las ${hhmm(t.lock)}` : t.st) : t.queue.length ? `${pl(t.queue.length, 'grupo', 'grupos')} en la fila · unos ${waitOf(t)} min` : 'sin cola'}${t.st === 'abierta' && !MV.z ? '<em>Clic para avisar de esta prueba</em>' : ''}`;
     const s = STAFF.find((q) => (q.role !== 'mon' || q.st !== 'puesto') && near(q, 10)); if (s) return `<b>${s.name}</b>${ROLE[s.role].t}`;
-    const g = groupAt(px, py, 9); if (g) return `<b>${esc(gName(g))}</b>${pl(g.alive, 'persona', 'personas')} · ${esc(placeOf(g) || 'celda ' + cellAt(g.x, g.z))}${mv ? '<em>Clic para mandarlos a otra prueba</em>' : MV.st === 'sel' ? `<em>Clic para ${MV.gs.includes(g) ? 'quitarlo' : 'añadirlo'}</em>` : ''}`;
+    const g = groupAt(px, py, 9); if (g) return `<b>${esc(gName(g))}</b>${pl(g.alive, 'persona', 'personas')} · ${esc(placeOf(g) || 'celda ' + cellAt(g.x, g.z))}`;
     return '';
   }
   cv.addEventListener('pointermove', (e) => {
@@ -4864,7 +5065,7 @@ const MAP = (() => {
     const r = cv.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top;
     const h = ptr.size ? '' : hoverAt(px, py);
     hov.hidden = !h; if (h) { if (hov.dataset.h !== h) { hov.innerHTML = h; hov.dataset.h = h; } hov.style.transform = `translate(${Math.round(px + 16)}px, ${Math.round(py + 14)}px)`; }
-    cv.style.cursor = MV.st === 'area' ? 'crosshair' : ptr.size ? 'grabbing' : h ? 'pointer' : MV.st === 'idle' ? 'grab' : 'crosshair';
+    cv.style.cursor = MV.st === 'area' || MV.st === 'zdest' || MV.st === 'zok' ? 'crosshair' : ptr.size ? 'grabbing' : h ? 'pointer' : 'grab';
   });
   cv.addEventListener('pointerleave', () => { hov.hidden = true; });
   cv.addEventListener('pointercancel', (e) => { ptr.delete(e.pointerId); gest = null; pinch = null; });
@@ -4878,15 +5079,11 @@ const MAP = (() => {
     const x = wx(px), z = wz(py), near = (q, r) => Math.hypot(sx(q.x) - px, sy(q.z) - py) < r;
     const t = TESTS.find((q) => q.st === 'abierta' && near(q, 18));
     if (MV.st === 'area') return;
-    if ((MV.st === 'sel' || (MV.st === 'ok' && !MV.z)) && t) { setDest(t, t); return; }
-    if (MV.st === 'sel') { const g = groupAt(px, py, 12); if (g) { MV.gs = MV.gs.includes(g) ? MV.gs.filter((o) => o !== g) : [...MV.gs, g]; if (!MV.gs.length) MV.st = 'idle'; renderBar(); } else say('Elige una prueba: abajo o haciendo clic en ella en el plano'); return; }
-    if (MV.st === 'dest' || (MV.st === 'ok' && MV.z)) { setDest(NAV.freeNear(x, z)); return; }
-    if (MV.st === 'ok') return;
+    if (MV.st === 'zdest' || MV.st === 'zok') { setDest(NAV.freeNear(x, z)); return; }
+    if (t) { pickTest(t); return; }
+    if (MV.st !== 'idle') return;
     const inc = INCS.find((i) => i.st !== 'resuelta' && i.prio === 3 && near(i.g || i, 20)); if (inc) { renderSOS(); return; }
-    if (LAY.hordes) { const h = HORDES.find((q) => near(q, 18)); if (h) { selectHorde(h); return; } }
-    if (t) { if (t.queue.length) { selectGroups(t.queue.slice()); say(`La fila de ${t.name}: ${pl(t.queue.length, 'grupo', 'grupos')}`); } else say(`${t.name} no tiene cola ahora mismo`); return; }
-    const g = groupAt(px, py); if (g) { selectGroups([g]); return; }
-    say('Haz clic en una prueba, en un grupo o en una horda');
+    if (LAY.hordes) { const h = HORDES.find((q) => near(q, 18)); if (h) pickHorde(h); }
   }
   const pings = [];
   const ping = (p, r, col) => { pings.push({ x: p.x, z: p.z, r, col, t0: performance.now() }); };
@@ -4912,44 +5109,6 @@ const MAP = (() => {
   const polyPath = (p) => { ctx.beginPath(); p.forEach(([x, z], i) => (i ? ctx.lineTo(sx(x), sy(z)) : ctx.moveTo(sx(x), sy(z)))); ctx.closePath(); };
   const dashed = (pts, col, w = 2, dash = [6, 5]) => { if (!pts || pts.length < 2) return; ctx.beginPath(); pts.forEach((p, i) => (i ? ctx.lineTo(sx(p.x), sy(p.z)) : ctx.moveTo(sx(p.x), sy(p.z)))); ctx.strokeStyle = col; ctx.lineWidth = w; ctx.setLineDash(dash); ctx.stroke(); ctx.setLineDash([]); };
   const restOf = (w) => (w.path ? [{ x: w.x, z: w.z }, ...w.path.slice(w.pi)] : w.pend ? [{ x: w.x, z: w.z }, w.pend] : null);
-  const fillPoly = (p, col) => { ctx.beginPath(); for (let i = 0; i < p.length; i += 2) (i ? ctx.lineTo : ctx.moveTo).call(ctx, sx(p[i]), sy(p[i + 1])); ctx.closePath(); ctx.fillStyle = col; ctx.fill(); };
-  function drawStreets() {
-    ctx.fillStyle = CC.out; ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = CC.land; ctx.fillRect(sx(BB.x0), sy(BB.z0), (BB.x1 - BB.x0) * vw.sc, (BB.z1 - BB.z0) * vw.sc);
-    for (const g of D.green2d || []) fillPoly(g, CC.green);
-    for (const w of D.water) fillPoly(w.p, CC.water);
-    for (const q of D.plazas2d || []) fillPoly(q, CC.plaza);
-    // calles: de las pequeñas a las principales, con un grosor mínimo para que se vean de lejos
-    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-    let c = -1;
-    for (const r of ROADS) {
-      if (r.c !== c) { if (c >= 0) ctx.stroke(); c = r.c; ctx.beginPath(); ctx.strokeStyle = RCOL[c]; ctx.lineWidth = Math.max(RW[c] * vw.sc, RMIN[c]); }
-      for (let i = 0; i < r.p.length; i += 2) (i ? ctx.lineTo : ctx.moveTo).call(ctx, sx(r.p[i]), sy(r.p[i + 1]));
-    }
-    if (c >= 0) ctx.stroke();
-    // manzanas encima: así cada calle se ve exactamente como el hueco entre edificios
-    if (vw.sc < 2) { ctx.imageSmoothingEnabled = true; ctx.drawImage(bld, sx(BB.x0), sy(BB.z0), (BB.x1 - BB.x0) * vw.sc, (BB.z1 - BB.z0) * vw.sc); }
-    else {
-      const x0 = wx(INS.l - 20), x1 = wx(W + 20), z0 = wz(INS.t - 20), z1 = wz(H + 20);
-      for (const q of BLD) if (q.b[2] > x0 && q.b[0] < x1 && q.b[3] > z0 && q.b[1] < z1) fillPoly(q.p, q.k === 4 ? CC.church : CC.block);
-    }
-    for (const m of D.monuments || []) if (m.x !== undefined && m.t !== 'ring') { ctx.beginPath(); ctx.arc(sx(m.x), sy(m.z), Math.max(2.5, (m.r || m.s / 2) * vw.sc), 0, TAU); ctx.fillStyle = '#c9a160'; ctx.fill(); }
-    // nombres de calle a lo largo de la calle, sin pisarse
-    if (vw.sc < 0.85) return;
-    ctx.font = '600 12px "Barlow Condensed", "Arial Narrow", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    const placed = [];
-    for (const l of LBL) {
-      const X = sx(l.x), Y = sy(l.z); if (X < INS.l || X > W - INS.r || Y < INS.t || Y > H - INS.b) continue;
-      let w = lblW.get(l.n); if (w === undefined) { w = ctx.measureText(l.n).width; lblW.set(l.n, w); }
-      if (l.len * vw.sc < w + 10) continue;
-      const r = w / 2 + 6; if (placed.some((o) => Math.hypot(o[0] - X, o[1] - Y) < o[2] + r - 4)) continue;
-      placed.push([X, Y, r]);
-      ctx.save(); ctx.translate(X, Y); ctx.rotate(l.a);
-      ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(22, 25, 31, 0.92)'; ctx.strokeText(l.n, 0, 0.5); ctx.fillStyle = l.c <= 1 ? '#e2e6ee' : '#b9c1ce'; ctx.fillText(l.n, 0, 0.5);
-      ctx.restore();
-    }
-    ctx.textAlign = 'left';
-  }
   let heatAt = 0, lastDraw = 0;
   function draw(now) {
     if (!W) resize();
@@ -4960,10 +5119,8 @@ const MAP = (() => {
     const T = now / 1000, picked = new Set(MV.gs);
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     ctx.fillStyle = '#0b0d11'; ctx.fillRect(0, 0, W, H);
-    if (LAY.foto) {
-      if (wideImg.complete && wideImg.naturalWidth) { const w = D.wide; ctx.drawImage(wideImg, sx(w[0]), sy(w[1]), (w[2] - w[0]) * vw.sc, (w[3] - w[1]) * vw.sc); ctx.fillStyle = 'rgba(9, 11, 15, 0.72)'; ctx.fillRect(0, 0, W, H); }
-      if (baseReady) ctx.drawImage(base, sx(BB.x0), sy(BB.z0), (BB.x1 - BB.x0) * vw.sc, (BB.z1 - BB.z0) * vw.sc);
-    } else drawStreets();
+    const pv = { sx, sy, wx, wz, sc: vw.sc, W, H, top: INS.t, bot: INS.b, left: INS.l, right: INS.r };
+    if (LAY.foto) V.PLAN.photo(ctx, pv); else V.PLAN.streets(ctx, pv);
     // cuadrícula del juego (la misma que en el mapa de los jugadores)
     if (LAY.grid) {
       ctx.strokeStyle = LAY.foto ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.05)'; ctx.lineWidth = 1; ctx.beginPath();
@@ -4991,7 +5148,7 @@ const MAP = (() => {
     // la gente: mapa de calor y cada grupo como un punto
     if (LAY.heat) { ctx.imageSmoothingEnabled = true; ctx.globalAlpha = 0.9; ctx.drawImage(hcv, sx(BB.x0), sy(BB.z0), HW * HC * vw.sc, HH * HC * vw.sc); ctx.globalAlpha = 1; }
     // los que van adonde se les ha mandado: su camino por las calles
-    for (const o of GOING) for (const g of o.gs || []) if (g.st === 'called' || g.st === 'toTest') dashed(restOf(g), 'rgba(255,210,31,.45)', 1.2, [3, 4]);
+    for (const o of GOING) for (const g of o.go) if (g.st === 'toTest' && g.test === o.t) dashed(restOf(g), 'rgba(255,210,31,.45)', 1.2, [3, 4]);
     if (LAY.groups) {
       const r = clamp(vw.sc * 2.4, 1.8, 4.6);
       for (const g of GROUPS) {
@@ -5019,7 +5176,7 @@ const MAP = (() => {
     }
     // pruebas: número, color de la cola y la espera
     if (LAY.tests) for (const t of TESTS) {
-      const X = sx(t.x), Y = sy(t.z), on = t.st === 'abierta', c = on ? levelOf(t).col : '#5d5a52', isSel = MV.dest?.test === t;
+      const X = sx(t.x), Y = sy(t.z), on = t.st === 'abierta', c = on ? levelOf(t).col : '#5d5a52', isSel = MV.t === t;
       if (isSel) { ctx.beginPath(); ctx.arc(X, Y, 18 + Math.sin(T * 4) * 2, 0, TAU); ctx.strokeStyle = ORG; ctx.lineWidth = 2.5; ctx.stroke(); dashed(t.slots.slice(0, Math.max(2, t.queue.length + 1)).map((s) => s), 'rgba(143,220,44,.5)', 1.5, [2, 4]); }
       ctx.fillStyle = c; ctx.strokeStyle = '#0b0d11'; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.roundRect ? ctx.roundRect(X - 10, Y - 10, 20, 20, 5) : ctx.rect(X - 10, Y - 10, 20, 20); ctx.fill(); ctx.stroke();
@@ -5060,11 +5217,11 @@ const MAP = (() => {
       badge(X, Y, 9, c, null, '#fff');
       ctx.font = '900 13px "Barlow Condensed", sans-serif'; ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('!', X, Y + 0.5); ctx.textAlign = 'left';
     }
-    // adónde van: líneas desde cada uno hasta el destino y la chincheta
-    if (MV.st === 'ok' && MV.dest) {
+    // hacia dónde se va la horda: línea y chincheta
+    if (MV.st === 'zok' && MV.dest) {
       const d = MV.dest, X = sx(d.x), Y = sy(d.z);
       ctx.strokeStyle = 'rgba(255,210,31,.55)'; ctx.lineWidth = 1.4; ctx.setLineDash([5, 5]); ctx.beginPath();
-      for (const g of MV.z ? [MV.z] : MV.gs) { ctx.moveTo(sx(g.x), sy(g.z)); ctx.lineTo(X, Y); }
+      ctx.moveTo(sx(MV.z.x), sy(MV.z.z)); ctx.lineTo(X, Y);
       ctx.stroke(); ctx.setLineDash([]);
       ctx.beginPath(); ctx.moveTo(X, Y); ctx.lineTo(X - 8, Y - 16); ctx.lineTo(X + 8, Y - 16); ctx.closePath(); ctx.fillStyle = ORG; ctx.fill();
       ctx.beginPath(); ctx.arc(X, Y - 23, 10, 0, TAU); ctx.fill(); ctx.beginPath(); ctx.arc(X, Y - 23, 4, 0, TAU); ctx.fillStyle = '#10131a'; ctx.fill();
@@ -5087,7 +5244,7 @@ const ORGV = {
   },
   frame(now) {
     MAP.draw(now);
-    if (now - orgSec > 1000) { orgSec = now; updTop(); renderGoing(); renderSOS(); if (MV.st === 'ok') { const b = q$('.cp-bar'); b.dataset.h = ''; renderBar(); } }
+    if (now - orgSec > 1000) { orgSec = now; updTop(); renderGoing(); renderSOS(); if (MV.st === 'idle' || MV.st === 'who') renderBar(); }
   },
 };
 addEventListener('resize', () => { if (view === 'org') MAP.layout(); });
@@ -5118,6 +5275,25 @@ for (const t of TESTS) {
   el.addEventListener('click', () => { V.flyTo(new THREE.Vector3(t.x, 0, t.z), 220, 50); V.toast(testLine(t), levelOf(t).col); });
   labelsEl.appendChild(el); t.el = el; t.txt = '';
 }
+// en el plano 2D, como en el de organización: número, color de la cola y la espera
+V.P2.extra = (ctx, v) => {
+  for (const t of TESTS) {
+    if (t.st !== 'abierta') continue;
+    const X = v.sx(t.x), Y = v.sy(t.z), c = levelOf(t).col;
+    ctx.fillStyle = c; ctx.strokeStyle = '#0b0d11'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.roundRect ? ctx.roundRect(X - 10, Y - 10, 20, 20, 5) : ctx.rect(X - 10, Y - 10, 20, 20); ctx.fill(); ctx.stroke();
+    ctx.save(); ctx.translate(X - 7, Y - 7); ctx.scale(14 / 24, 14 / 24); ctx.fillStyle = '#10131a'; ctx.fill(new Path2D('M5 2.5h2.4v19H5zM8.6 3.5h11l-3 5 3 5h-11z')); ctx.restore();
+    const s = t.queue.length ? `${waitOf(t)} min` : 'libre';
+    ctx.font = '700 12px "Barlow Condensed", sans-serif'; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+    const w = ctx.measureText(s).width + 10, x = X + 13;
+    ctx.fillStyle = 'rgba(12, 14, 19, .9)'; ctx.strokeStyle = c; ctx.lineWidth = 1; ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, Y - 9, w, 18, 9) : ctx.rect(x, Y - 9, w, 18); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.fillText(s, x + 5, Y + 0.5);
+  }
+};
+V.P2.tapExtra = (px, py, v) => {
+  const t = TESTS.find((q) => q.st === 'abierta' && Math.hypot(v.sx(q.x) - px, v.sy(q.z) - py) < 18); if (!t) return false;
+  V.toast(testLine(t), levelOf(t).col); return true;
+};
 const _p = new THREE.Vector3();
 function drawTests(now) {
   const w = V.canvas.clientWidth, h = V.canvas.clientHeight;
@@ -5129,7 +5305,7 @@ function drawTests(now) {
     const ph = (now / 1000 * 0.45 + t.id * 0.27) % 1, s = 5 + ph * 16;
     t.ring.scale.set(s, 1, s); t.ring.material.uniforms.uA.value = (1 - ph) * 0.9;
     _p.set(t.x, 26, t.z).project(V.camera);
-    const vis = open && _p.z < 1 && Math.abs(_p.x) < 1.2 && Math.abs(_p.y) < 1.2;
+    const vis = !V.P2.on && open && _p.z < 1 && Math.abs(_p.x) < 1.2 && Math.abs(_p.y) < 1.2;
     t.el.style.display = vis ? '' : 'none';
     if (vis) t.el.style.transform = `translate3d(${((_p.x * 0.5 + 0.5) * w).toFixed(1)}px, ${((-_p.y * 0.5 + 0.5) * h).toFixed(1)}px, 0) translate(-50%, -100%)`;
   }
@@ -5170,10 +5346,10 @@ requestAnimationFrame(tick);
 await new Promise((res) => { const iv = setInterval(() => { if ($('#loader').classList.contains('done')) { clearInterval(iv); res(); } }, 200); });
 setTimeout(() => {
   const me = crew[0]; V.flyTo(new THREE.Vector3(me.x, 0, me.z), 300, 50, null, 2200);
-  tip('Tu grupo, en directo. Toca una casilla del mapa y prueba <b>¿Avisar aquí?</b> → <b>Reunión</b>. Arriba, <b>Organización</b>: mover a la gente.');
+  tip('Tu grupo, en directo. Toca una casilla del mapa y prueba <b>¿Avisar aquí?</b> → <b>Reunión</b>. Arriba, <b>Organización</b>: avisos a los grupos y zombis.');
   startPlayerLife();
 }, 3600);
-window.__demo = { setView, CLK, SIM, GROUPS, TESTS, HORDES, STAFF, INCS, ACT, MAP, MV, selectGroups, setDest, sendMove, simInc };
+window.__demo = { setView, CLK, SIM, GROUPS, TESTS, HORDES, STAFF, INCS, ACT, MAP, MV, GOING, pickTest, pickWho, pickHorde, setDest, sendMove, simInc };
 </script>
 </body>
 </html>
