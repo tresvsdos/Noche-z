@@ -2296,9 +2296,15 @@ function updateRise(now) {
   U.uRise.value.z = k >= 1 ? (riseAn.on ? 1e7 : 0) : a < 0.75 ? 20 + 880 * Math.pow(a / 0.75, 1.5) : 900 * Math.pow(10, (a - 0.75) * 4);
   if (k >= 1) riseAn = null;
 }
+// entrar directamente en el plano, sin vuelo (la demo): el 3D, con su transición, queda para el botón
+function start2D(x, z, dist) {
+  set2D(true); flight = null; U.uRise.value.z = 0;
+  cam.target.set(x, 0, z); cam.dist = dist; cam.phi = cam.minPhi; cam.theta = 0; applyCam();
+  P2.show(true);
+}
 function toggle2D() {
   if (!is2D) { set2D(true); riseTo(false, 800); flyTo(cam.target, Math.max(cam.dist, 500), 0, 0, 800); }
-  else { set2D(false); P2.show(false); riseTo(true, 3000, 500); flyTo(cam.target, Math.min(cam.dist, 420), 60, 0.45, 3400); }   // la cámara empieza a bajar antes, para ver subir los edificios de lado
+  else { set2D(false); P2.show(false); riseTo(true, 3000, 500); flyTo(cam.target, Math.min(cam.dist, 420), 60, -0.5, 3400); }   // la cámara empieza a bajar antes, para ver subir los edificios de lado
 }
 $('#btn-2d').addEventListener('click', toggle2D);
 $('#btn-2dq').addEventListener('click', toggle2D);
@@ -2855,7 +2861,8 @@ function enterApp() {
   unlockAudio().then((ok) => { if (ok) $('#audio-unlock')?.remove(); if (ok && amb.on) startAmbient(true); });
   $('#loader').classList.add('done');
   const fl = document.createElement('div'); fl.className = 'flash'; $('#app').appendChild(fl); setTimeout(() => fl.remove(), 1400);
-  if (!reduceMotion) {
+  if (window.__pvStart) window.__pvStart();
+  else if (!reduceMotion) {
     // desde muy alto y girado hasta la vista general
     cam.dist = 2500; cam.phi = THREE.MathUtils.degToRad(8); cam.theta = 0.12 - 1.2; applyCam();
     overview(false, 3000);
@@ -2871,7 +2878,7 @@ function enterApp() {
   $('#ly-saver').checked = v; setSaver(v);
 }
 requestAnimationFrame(frame);
-window.__pv = { camera, cam, flyTo, overview, toggle2D, get is2D() { return is2D; }, U, scene, power, busy, bloom };
+window.__pv = { camera, cam, flyTo, overview, toggle2D, start2D, get is2D() { return is2D; }, U, scene, power, busy, bloom };
 
 // ================================================================ MODO EQUIPO: GPS en directo + walkie-talkie + avisos
 // Transporte: MQTT sobre WebSocket (servidores públicos, en paralelo y con deduplicación).
@@ -3876,6 +3883,9 @@ body.dm-org .dm-sos { display: none; }
 .dm-sos-c .bt { display: flex; gap: 8px; margin-top: 10px; }
 .dm-sos-c .bt button { flex: 1; height: 40px; border-radius: 10px; border: 1px solid var(--line); background: transparent; color: var(--bone); font: inherit; font-weight: 600; cursor: pointer; }
 .dm-sos-c .bt [data-s="go"] { background: #d9271d; border-color: #d9271d; color: #fff; }
+
+/* el cambio de 2D a 3D, bien a la vista: la demo empieza en el plano */
+body.dm #btn-2dq { background: #ffb23f; border-color: #ffb23f; color: #14161a; font-weight: 700; box-shadow: 0 0 0 4px rgba(255, 178, 63, .28), 0 6px 18px rgba(0, 0, 0, .45); }
 /* ================================================================ vista de organización de la demo (tools/org.js)
    El plano 2D a pantalla completa, arriba la hora y cuántos juegan, y abajo una sola barra para mover a la gente:
    a quién, adónde y enviar. Mismas letras y colores que la app. */
@@ -4119,6 +4129,7 @@ function place(w) {
 }
 crew.forEach(place);
 V.updatePill();
+window.__pvStart = () => window.__pv.start2D(crew[0].x, crew[0].z, 340);   // la demo empieza en el plano
 // pasean un poco alrededor del grupo
 function wander(w, now) {
   if (w.me || w.path || now < w.next) return;
@@ -5413,10 +5424,9 @@ requestAnimationFrame(tick);
 // ---------------------------------------------------------------- al entrar (después de «Entrar» y el vuelo de la cámara)
 await new Promise((res) => { const iv = setInterval(() => { if ($('#loader').classList.contains('done')) { clearInterval(iv); res(); } }, 200); });
 setTimeout(() => {
-  const me = crew[0]; V.flyTo(new THREE.Vector3(me.x, 0, me.z), 300, 50, null, 2200);
-  tip('Tu grupo, en directo. Toca una casilla del mapa y prueba <b>¿Avisar aquí?</b> → <b>Reunión</b>. Arriba, <b>Organización</b>: avisos a los grupos y zombis.');
+  tip('Tu grupo, en directo. Pulsa <b>3D</b> para ver el pueblo. Arriba, <b>Organización</b>: avisos a los grupos y zombis.');
   startPlayerLife();
-}, 3600);
+}, 1800);
 window.__demo = { crew, crewAnchor, place, walk, setView, CLK, SIM, GROUPS, TESTS, HORDES, STAFF, INCS, ACT, MAP, MV, GOING, pickTest, pickWho, pickHorde, setDest, sendMove, simInc };
 </script>
 </body>
