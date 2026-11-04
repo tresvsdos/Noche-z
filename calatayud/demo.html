@@ -4394,7 +4394,7 @@ const JEFES = ['Rubén', 'Iratxe', 'Dani', 'Paula', 'Kike', 'Noelia', 'Toni', 'V
 const HDEF = [];   // 18 hordas (unos 135 zombis), separadas al menos 120 m
 for (let k = 0; HDEF.length < 18 && k < 2000; k++) {
   const p = rndArea(); if (HDEF.some((d) => Math.hypot(d.at[0] - p.x, d.at[1] - p.z) < 120)) continue;
-  HDEF.push({ name: `Horda ${HDEF.length + 1}`, jefe: JEFES[HDEF.length], n: 6 + Math.floor(rnd() * 4), at: [p.x, p.z], zr: 70 + Math.floor(rnd() * 40), c0: 0, lc: 2 + Math.floor(rnd() * 24) });
+  HDEF.push({ name: `Escuadra ${HDEF.length + 1}`, jefe: JEFES[HDEF.length], n: 6 + Math.floor(rnd() * 4), at: [p.x, p.z], zr: 70 + Math.floor(rnd() * 40), c0: 0, lc: 2 + Math.floor(rnd() * 24) });
 }
 for (let i = 0; i < 58; i++) HDEF[Math.floor(rnd() * HDEF.length)].c0++;
 const ZCOL = '#ff2d2d';
@@ -4497,7 +4497,7 @@ function mkInc(ty, p, g, txt, t0, extra = {}) {
   n('¡Empieza la noche! Suerte, y no os separéis del grupo', at(21, 50), 'info', 0.97);
   NOTICES.sort((a, b) => b.t - a.t);
   log('Las pruebas El Taller y La Farmacia, sin cola: aviso a todos', 'n');
-  log('Horda Mercado atrapa a 2 de #87', 'z');
+  log('Escuadra 3 atrapa a 2 de #87', 'z');
   log('Lucía resuelve la lesión de la calle Gotor', 'ok');
 }
 // guion de la noche: lo que va pasando a su hora (se lanza solo o a mano)
@@ -4505,9 +4505,9 @@ const SCRIPT = [
   { t: at(21, 0), txt: 'Abre el check-in', sub: 'Claretianos, calle Fernández Ardavín', done: true },
   { t: at(21, 40), txt: 'Briefing de seguridad', sub: 'En el check-in, con todos los grupos', done: true },
   { t: at(21, 50), txt: 'Salida: empieza la noche', sub: 'Aviso a todos los móviles', done: true },
-  { t: at(22, 20), txt: 'Oleada 1', sub: 'Todas las hordas a por la gente, 10 min', done: true },
+  { t: at(22, 20), txt: 'Oleada 1', sub: 'Todos los zombis a por la gente, 10 min', done: true },
   { t: at(22, 55), txt: 'Aviso: «Oleada en 5 minutos»', sub: 'A todos los jugadores', act: 'warnWave' },
-  { t: at(23, 0), txt: 'Oleada 2', sub: 'Todas las hordas a las zonas con más gente, 10 min', act: 'wave' },
+  { t: at(23, 0), txt: 'Oleada 2', sub: 'Todos los zombis a las zonas con más gente, 10 min', act: 'wave' },
   { t: at(23, 20), txt: 'Se abre El Búnker', sub: 'La prueba final, en la plaza Comunidad · aviso a todos', act: 'unlock' },
   { t: at(23, 45), txt: 'Cierra el avituallamiento', sub: 'Plaza de España · aviso a todos', act: 'closeAvit' },
   { t: at(0, 20), txt: 'Aviso: escena final a las 00:45', sub: 'En la plaza del Fuerte', act: 'warnFinal' },
@@ -4722,7 +4722,7 @@ function recipients(to) {
 }
 const people = (gs) => gs.reduce((a, g) => a + g.alive, 0);
 const toLabel = (to) => (to.type === 'all' ? 'Todos los jugadores' : to.type === 'zone' ? `Zona de ${to.r} m · ${placeOf(to) || 'celda ' + cellAt(to.x, to.z)}`
-  : to.type === 'groups' ? (to.ids.length === 1 ? gName(GROUPS[to.ids[0] - 1]) : `${to.ids.length} grupos`) : to.type === 'staff' ? 'Todo el staff' : 'Todas las hordas (walkie)');
+  : to.type === 'groups' ? (to.ids.length === 1 ? gName(GROUPS[to.ids[0] - 1]) : `${to.ids.length} grupos`) : to.type === 'staff' ? 'Todo el staff' : 'Todos los zombis (walkie)');
 function sendNotice(n) {
   n.id = ++SIM.nN; n.t = CLK.t;
   if (n.when) { n.sched = CLK.t + n.when * 60; NOTICES.unshift(n); log(`Aviso programado para las ${hhmm(n.sched)}: «${n.txt}»`, 'n'); say(`Aviso programado para las ${hhmm(n.sched)}`, 'ok'); return n; }
@@ -4753,7 +4753,7 @@ function deliver(n) {
   if (n.pt || n.to.type === 'zone') MAP.ping(n.pt || n.to, n.to.type === 'zone' ? n.to.r : 0, n.kind === 'peligro' ? '#ff3b30' : ORG);
   if (n.pt && (n.to.type === 'all' || n.to.type === 'zone')) V.showPing({ k: 'k', t: n.kind === 'peligro' ? 'peligro' : 'reunion', id: 'morg', name: 'Organización', col: ORG, pid: `org-${n.id}`, x: n.pt.x, z: n.pt.z, cell: cellAt(n.pt.x, n.pt.z) });
   log(`Aviso a ${toLabel(n.to).toLowerCase()}: «${n.txt}»`, 'n');
-  if (!n.quiet) { say(`Aviso enviado a ${n.to.type === 'hordes' ? 'las hordas' : n.to.type === 'staff' ? 'todo el staff' : pl(n.n, 'persona', 'personas')}`, 'ok'); sentFx(); }
+  if (!n.quiet) { say(`Aviso enviado a ${n.to.type === 'hordes' ? 'los zombis' : n.to.type === 'staff' ? 'todo el staff' : pl(n.n, 'persona', 'personas')}`, 'ok'); sentFx(); }
 }
 const delivered = (n) => Math.round(n.n * Math.min(0.993, 1 - Math.exp(-(CLK.t - n.t) / 7)));
 const readN = (n) => Math.round(n.n * n.read0 * (1 - Math.exp(-(CLK.t - n.t) / 80)));
@@ -4781,7 +4781,7 @@ function wave(m = 10) {
     z.st = 'wave'; z.target = null; z.int0 = z.int0 ?? z.int; z.int = Math.max(z.int, 1.4); z.waveEnd = CLK.t + m * 60; z.next = CLK.t + 60;
     if (best) goTo(z, rndFree(best, 0, 25), 2.2);
   }
-  log(`Oleada: todas las hordas a las zonas con más gente (${m} min)`, 'z'); radioFx(); say('Oleada en marcha: todas las hordas, por su canal', 'z');
+  log(`Oleada: todos los zombis a las zonas con más gente (${m} min)`, 'z'); radioFx(); say('Oleada en marcha: todos los zombis, por su canal', 'z');
 }
 // dónde se amontona la gente ahora (para oleadas y sugerencias), lejos de las pruebas (allí no se puede atrapar)
 function hotspots(k, near) {
@@ -4844,7 +4844,7 @@ const SACT = {
   closeAvit: () => { SIM.avit = false; ZONES[3].on = false; sendNotice({ txt: 'El avituallamiento de la plaza de España cierra ya', kind: 'info', to: { type: 'all' }, quiet: true }); },
   warnFinal: () => sendNotice({ txt: 'La escena final empieza a las 00:45 en la plaza del Fuerte', kind: 'imp', to: { type: 'all' }, pt: { x: P.escena.x, z: P.escena.z }, quiet: true }),
   recall: () => { for (const t of TESTS) if (t.st === 'abierta') { t.st = 'cerrada'; t.since = CLK.t; t.queue.slice().forEach((g) => { leaveTest(g); g.st = 'roam'; }); } sendNotice({ txt: 'Todos a la plaza del Fuerte: empieza la escena final', kind: 'imp', to: { type: 'all' }, pt: { x: P.escena.x, z: P.escena.z }, go: true, quiet: true }); },
-  final: () => { for (const z of HORDES) hordeGo(z, rndFree(P.escena, 30, 70), 'go', true); log('Escena final: todas las hordas a la plaza del Fuerte', 'z'); },
+  final: () => { for (const z of HORDES) hordeGo(z, rndFree(P.escena, 30, 70), 'go', true); log('Escena final: todos los zombis a la plaza del Fuerte', 'z'); },
   end: () => { SIM.ended = true; sendNotice({ txt: 'Fin del juego. Gracias por sobrevivir: os esperamos en el check-in', kind: 'imp', to: { type: 'all' }, pt: { x: P.checkin.x, z: P.checkin.z }, go: true, quiet: true }); for (const z of HORDES) hordeRest(z, 120); },
 };
 function runScript(s, manual) {
@@ -4924,7 +4924,7 @@ const nearGroups = (t) => GROUPS.filter((g) => canGo(g, t) && dist(g, t) < WALK)
 const longQueue = (t) => TESTS.filter((q) => q !== t && q.st === 'abierta' && q.queue.length >= 2 && waitOf(q) > waitOf(t) + 5).sort((a, b) => waitOf(b) - waitOf(a))[0];
 function renderBar() {
   let h = '';
-  if (MV.st === 'idle') h = `<div class="tx"><b>¿Qué prueba tiene hueco?</b><small>Elige una para avisar a los grupos, aquí o en el plano. Para mover zombis, haz clic en una horda.</small></div>
+  if (MV.st === 'idle') h = `<div class="tx"><b>¿Qué prueba tiene hueco?</b><small>Elige una para avisar a los grupos, aquí o en el plano. Para mover zombis, haz clic en una escuadra.</small></div>
     <div class="bt tests">${freeTests().map((t) => btn(`${esc(t.name)}<span>${waitOf(t) ? `${waitOf(t)} min` : 'libre'}</span>`, 'mv-t', t.id)).join('')}</div>`;
   else if (MV.st === 'who') {
     const n = nearGroups(MV.t), q = longQueue(MV.t);
