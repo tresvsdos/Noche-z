@@ -4934,7 +4934,7 @@ function renderBar() {
     <div class="bt">${btn('Cancelar', 'mv-x')}</div>`;
   else if (MV.st === 'ok') h = `<div class="tx"><b>«${esc(msgFor(MV.t))}»</b><small>Para ${MV.who}: ${pl(MV.gs.length, 'grupo', 'grupos')}, ${pl(people(MV.gs), 'persona', 'personas')}. Les llega al móvil con la prueba marcada en su mapa; cada grupo decide si va.</small></div>
     <div class="bt">${btn(`${svg('send')}Enviar aviso <kbd>Intro</kbd>`, 'mv-go', '', 'go')}${btn('Cancelar <kbd>Esc</kbd>', 'mv-x')}</div>`;
-  else if (MV.st === 'zdest') h = `<div class="tx"><b>${MV.z.n} zombis</b><small>Haz clic hacia dónde quieres que se vaya</small></div>
+  else if (MV.st === 'zdest') h = `<div class="tx"><b>${MV.z.n} zombis</b><small>Haz clic hacia dónde quieres que vayan</small></div>
     <div class="bt">${btn('Cancelar', 'mv-x')}</div>`;
   else if (MV.st === 'zok') h = `<div class="tx"><b>${MV.z.name} → ${esc(zName(MV.dest))}</b><small>Se lo dices a ${MV.z.jefe}, su jefe, por el walkie: «Moveos hacia ${esc(zName(MV.dest))}».</small></div>
     <div class="bt">${btn(`${svg('send')}Decírselo <kbd>Intro</kbd>`, 'mv-go', '', 'go')}${btn('Cancelar <kbd>Esc</kbd>', 'mv-x')}</div>`;
