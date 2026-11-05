@@ -2819,7 +2819,7 @@ function updateLabels() {
   if (P2.on) return;
   const w = canvas.clientWidth, h = canvas.clientHeight;
   for (const L of labels) {
-    if (L.hide || (L.kind === 'place' && !showNames)) { L.el.style.display = 'none'; continue; }
+    if (L.hide || (L.kind === 'place' && !showNames) || (L.kind === 'marker' && COARSE && cam.dist > 520)) { L.el.style.display = 'none'; continue; }   // en el móvil, de lejos, se pisan
     _v.copy(L.pos);
     const dist = _v.distanceTo(camera.position);
     _v.project(camera);

@@ -2820,7 +2820,7 @@ function updateLabels() {
   if (P2.on) return;
   const w = canvas.clientWidth, h = canvas.clientHeight;
   for (const L of labels) {
-    if (L.hide || (L.kind === 'place' && !showNames)) { L.el.style.display = 'none'; continue; }
+    if (L.hide || (L.kind === 'place' && !showNames) || (L.kind === 'marker' && COARSE && cam.dist > 520)) { L.el.style.display = 'none'; continue; }   // en el móvil, de lejos, se pisan
     _v.copy(L.pos);
     const dist = _v.distanceTo(camera.position);
     _v.project(camera);
@@ -4143,6 +4143,7 @@ const cellXZ = (cell) => { const [r, c] = cell.split('-'); const [x, z] = V.grid
 // inversa de llToXZ de la plantilla (tools/venue.py)
 const toLL = (x, z) => ({ lon: (x / 0.691322751 + 2048) / 4096 * 0.033822149 - 1.661511075, lat: 41.3622 - (z / 0.691322751 + 1606) / 3213 * 0.02 });
 const ORG = '#ffd21f';
+const PHONE = matchMedia('(pointer: coarse)').matches;
 const TOUR = false;   // true en tutorial.html (lo cambia assemble.py)
 let seed = 7;
 const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;   // con semilla: los grupos salen siempre en los mismos sitios
@@ -4220,7 +4221,7 @@ function place(w) {
   const e = w.me ? T.meEntry : w.m;
   if (!e?.av) return;
   e.x = e.tx; e.z = e.tz;   // sin el suavizado de la app: en las esquinas recortaría y se metería en un edificio
-  if (view === 'org') { e.av.g.visible = false; e.av.L.hide = true; }
+  if (view === 'org' || window.__tourEmpty) { e.av.g.visible = false; e.av.L.hide = true; }
 }
 crew.forEach(place);
 V.updatePill();
@@ -5448,13 +5449,13 @@ function drawTests(now) {
   const w = V.canvas.clientWidth, h = V.canvas.clientHeight;
   for (const t of TESTS) {
     const open = t.st === 'abierta', lv = levelOf(t), txt = t.queue.length ? `${waitOf(t)} min` : 'libre';
-    t.g3.visible = open; t.g3.position.set(t.x, 0, t.z);
+    t.g3.visible = open && (window.__tourBeam === undefined || window.__tourBeam === t); t.g3.position.set(t.x, 0, t.z);   // en el tutorial, solo la prueba de la que se habla
     if (lv !== t.lv) { t.lv = lv; t.el.querySelector('i').style.background = lv.col; t.el.style.borderColor = lv.col; t.beam.material.uniforms.uCol.value.set(lv.col); t.ring.material.uniforms.uCol.value.set(lv.col); }
     if (txt !== t.txt) { t.txt = txt; t.el.querySelector('.cell').textContent = txt; t.el.setAttribute('aria-label', testLine(t)); }
     const ph = (now / 1000 * 0.45 + t.id * 0.27) % 1, s = 5 + ph * 16;
     t.ring.scale.set(s, 1, s); t.ring.material.uniforms.uA.value = (1 - ph) * 0.9;
     _p.set(t.x, 26, t.z).project(V.camera);
-    const vis = !V.P2.on && open && _p.z < 1 && Math.abs(_p.x) < 1.2 && Math.abs(_p.y) < 1.2;
+    const vis = !V.P2.on && open && _p.z < 1 && Math.abs(_p.x) < 1.2 && Math.abs(_p.y) < 1.2 && !(PHONE && V.cam.dist > 520);
     t.el.style.display = vis ? '' : 'none';
     if (vis) t.el.style.transform = `translate3d(${((_p.x * 0.5 + 0.5) * w).toFixed(1)}px, ${((-_p.y * 0.5 + 0.5) * h).toFixed(1)}px, 0) translate(-50%, -100%)`;
   }

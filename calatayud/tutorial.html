@@ -2833,7 +2833,7 @@ function updateLabels() {
   if (P2.on) return;
   const w = canvas.clientWidth, h = canvas.clientHeight;
   for (const L of labels) {
-    if (L.hide || (L.kind === 'place' && !showNames)) { L.el.style.display = 'none'; continue; }
+    if (L.hide || (L.kind === 'place' && !showNames) || (L.kind === 'marker' && COARSE && cam.dist > 520)) { L.el.style.display = 'none'; continue; }   // en el móvil, de lejos, se pisan
     _v.copy(L.pos);
     const dist = _v.distanceTo(camera.position);
     _v.project(camera);
@@ -4092,7 +4092,10 @@ body.dm-org .dm-switch button { height: 30px; padding: 0 10px; font-size: 12px; 
 .cp-btn span { font-family: var(--f-mono); font-size: 12px; font-weight: 600; color: var(--ash); }
 .cp-bar .bt.tests .cp-btn.wide { grid-column: 1 / -1; }
 /* Tutorial (tutorial.html): la tarjeta de cada paso. Durante el tutorial se esconde lo que distrae; al acabar vuelve todo. */
-body.tour .dm-switch, body.tour .tabbar, body.tour .dm-tip, body.tour .dm-sos, body.tour .cp-sos { display: none !important; }
+body.tour .dm-switch, body.tour .tabbar, body.tour .dm-tip, body.tour .dm-sos, body.tour .cp-sos, body.tour .compass, body.tour .tpill, body.tour .hud, body.tour .cp-tools { display: none !important; }
+/* sin rótulos encima del mapa, salvo en los pasos que los necesitan, y entonces solo los del grupo y la prueba de la que se habla */
+body.tour:not(.tour-tags) #labels { display: none; }
+body.tour.tour-tags #labels .tag:not(.member):not(.tour-on) { display: none !important; }
 .tour-c {
   position: absolute; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 40;
   width: min(520px, calc(100% - 24px)); box-sizing: border-box; padding: 18px 18px 14px; overflow: hidden;
@@ -4127,6 +4130,8 @@ body.tour .cp-bar { visibility: hidden; }
 .tour-l .z b { transform: rotate(-45deg); color: #fff; font-size: 11px; }
 .tour-l .t { border-radius: 5px; background: linear-gradient(90deg, #8fdc2c 50%, #ff3b30 50%); color: #10131a; }
 .tour-l .s { border-radius: 50%; background: #10131a; border: 2px solid #4aa3ff; color: #4aa3ff; box-sizing: border-box; }
+.tour-n:disabled { opacity: .35; cursor: default; }
+.tour-n { transition: opacity .3s; }
 </style>
 <script>
 // Rutas por calles y plazas para los muñecos simulados del vídeo (video.js) y de la demo (demo.js): nunca a través de un edificio.
@@ -4192,6 +4197,7 @@ const cellXZ = (cell) => { const [r, c] = cell.split('-'); const [x, z] = V.grid
 // inversa de llToXZ de la plantilla (tools/venue.py)
 const toLL = (x, z) => ({ lon: (x / 0.691322751 + 2048) / 4096 * 0.033822149 - 1.661511075, lat: 41.3622 - (z / 0.691322751 + 1606) / 3213 * 0.02 });
 const ORG = '#ffd21f';
+const PHONE = matchMedia('(pointer: coarse)').matches;
 const TOUR = true;   // true en tutorial.html (lo cambia assemble.py)
 let seed = 7;
 const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;   // con semilla: los grupos salen siempre en los mismos sitios
@@ -4269,7 +4275,7 @@ function place(w) {
   const e = w.me ? T.meEntry : w.m;
   if (!e?.av) return;
   e.x = e.tx; e.z = e.tz;   // sin el suavizado de la app: en las esquinas recortaría y se metería en un edificio
-  if (view === 'org') { e.av.g.visible = false; e.av.L.hide = true; }
+  if (view === 'org' || window.__tourEmpty) { e.av.g.visible = false; e.av.L.hide = true; }
 }
 crew.forEach(place);
 V.updatePill();
@@ -5497,13 +5503,13 @@ function drawTests(now) {
   const w = V.canvas.clientWidth, h = V.canvas.clientHeight;
   for (const t of TESTS) {
     const open = t.st === 'abierta', lv = levelOf(t), txt = t.queue.length ? `${waitOf(t)} min` : 'libre';
-    t.g3.visible = open; t.g3.position.set(t.x, 0, t.z);
+    t.g3.visible = open && (window.__tourBeam === undefined || window.__tourBeam === t); t.g3.position.set(t.x, 0, t.z);   // en el tutorial, solo la prueba de la que se habla
     if (lv !== t.lv) { t.lv = lv; t.el.querySelector('i').style.background = lv.col; t.el.style.borderColor = lv.col; t.beam.material.uniforms.uCol.value.set(lv.col); t.ring.material.uniforms.uCol.value.set(lv.col); }
     if (txt !== t.txt) { t.txt = txt; t.el.querySelector('.cell').textContent = txt; t.el.setAttribute('aria-label', testLine(t)); }
     const ph = (now / 1000 * 0.45 + t.id * 0.27) % 1, s = 5 + ph * 16;
     t.ring.scale.set(s, 1, s); t.ring.material.uniforms.uA.value = (1 - ph) * 0.9;
     _p.set(t.x, 26, t.z).project(V.camera);
-    const vis = !V.P2.on && open && _p.z < 1 && Math.abs(_p.x) < 1.2 && Math.abs(_p.y) < 1.2;
+    const vis = !V.P2.on && open && _p.z < 1 && Math.abs(_p.x) < 1.2 && Math.abs(_p.y) < 1.2 && !(PHONE && V.cam.dist > 520);
     t.el.style.display = vis ? '' : 'none';
     if (vis) t.el.style.transform = `translate3d(${((_p.x * 0.5 + 0.5) * w).toFixed(1)}px, ${((-_p.y * 0.5 + 0.5) * h).toFixed(1)}px, 0) translate(-50%, -100%)`;
   }
@@ -5623,6 +5629,8 @@ const startTour = (() => {
   }
   const scatter = (g, pts, v) => { g.st = 'flee'; route(g, pts, v); };
   const say1 = (t) => { text.textContent = t; };
+  // «Siguiente» se enciende cuando acaba lo que se está enseñando
+  const done = () => { next.disabled = false; };
   // caso 1: la esquina de Justo Navarro con Madre Rafols
   const C1 = { from: [445, 246], corner: [[419, 214], [387, 170], [383, 165]], turn: [[390, 160], [430, 132]], people: [446, 121], run: [[458, 113], [452, 104], [402, 34]] };
   const set1 = () => {
@@ -5632,70 +5640,76 @@ const startTour = (() => {
     return { z, gs };
   };
   const STEPS = [
-    { t: 'Calatayud, entero', d: 'Todo el pueblo en 3D. Ya puedes ir eligiendo dónde esconderte.', run() {
+    { hold: 4200, empty: true, t: 'Calatayud, de noche', d: 'Todo el pueblo en 3D. Ya puedes ir eligiendo dónde esconderte.', run() {
       in3D();
       if (i === 0 && !turn.from) { cam.dist = 2500; cam.phi = THREE.MathUtils.degToRad(8); cam.theta = 0.12 - 1.2; V.applyCam(); }
-      W.overview(false, 3000); spin(3000);
+      W.flyTo(at(tower.x, tower.z), 330, 72, -0.5, 4200); spin(4200);
     } },
-    { t: 'Las referencias de siempre', d: 'Torres, castillos y plaza de toros. Para saber dónde estás mientras corres.', run() {
-      in3D(); W.flyTo(at(tower.x, tower.z), 200, 68, null, 2800); spin(2800);
+    { hold: 2800, empty: true, t: 'Las referencias de siempre', d: 'Torres, castillos y plaza de toros. Para saber dónde estás mientras corres.', run() {
+      in3D(); W.flyTo(at(tower.x, tower.z), 170, 77, 2.3, 2800); spin(2800);
     } },
-    { t: 'En el móvil, un plano claro', d: 'Calles, pruebas y tu grupo. Perderse ya no es excusa.', run() {
+    { hold: 1800, t: 'En el móvil, un plano claro', d: 'Calles, pruebas y tu grupo. Perderse ya no es excusa.', run() {
       if (view === 'org') setView('player');
       const m = midView();
       if (W.is2D) { W.flyTo(at(m.x, m.z), 440, 0, 0, 900); return; }
       W.flyTo(at(m.x, m.z), 560, 50, null, 900); later(() => { W.toggle2D(); later(() => W.flyTo(at(m.x, m.z), 440, 0, 0, 700), 900); }, 950);
     } },
-    { t: 'Y con un botón, en 3D', d: 'El pueblo se levanta justo donde mirabas. No hacía ninguna falta, pero mira qué bonito.', run() {
+    { hold: 3600, empty: true, t: 'Y con un botón, en 3D', d: 'El pueblo se levanta justo donde mirabas. No hacía ninguna falta, pero mira qué bonito.', run() {
       if (view === 'org') setView('player');
       if (W.is2D) W.toggle2D(); else { const m = midView(); W.flyTo(at(m.x, m.z), 420, 60, -0.5, 1800); }
       spin(3600);
     } },
-    { t: 'Su grupo, en directo', d: 'Laura marca un punto de reunión y a todos les llega. Hugo ya no tiene excusa.', run() {
+    { hold: 'guion', tags: true, t: 'Su grupo, en directo', d: 'Laura marca un punto de reunión y a todos les llega. Hugo ya no tiene excusa.', run() {
       in3D(); crew.forEach(home);
       const me = crew[0], m = midView();
       W.flyTo(at(m.x, m.z), 300, 55, null, 1800);
       later(() => {
         V.onPing({ k: 'k', t: 'reunion', id: 'mdemo1', name: 'Laura', col: crew[1].col, pid: 'tour-reu', x: me.x, z: me.z, cell: cellAt(me.x, me.z) });
         crewAnchor.x = me.x; crewAnchor.z = me.z;
-        crew.forEach((w) => { if (!w.me) { w.r = 10; walk(w, around(me, 4, 9), 12, () => { w.next = performance.now() + 60000; }); } });
+        let left = crew.length - 1;
+        crew.forEach((w) => { if (!w.me) { w.r = 10; walk(w, around(me, 4, 9), 16, () => { w.next = performance.now() + 60000; if (--left === 0) done(); }); } });
       }, 2000);
     } },
-    { t: 'Sabe adónde ir', d: 'Si una prueba tiene poca espera, se avisa a tiempo. Cada grupo decide si va.', run() {
+    { hold: 2400, tags: true, t: 'Sabe adónde ir', d: 'Si una prueba tiene poca espera, se avisa a tiempo. Cada grupo decide si va.', run() {
       in3D();
       const me = crew[0], d = (q) => Math.hypot(q.x - me.x, q.z - me.z);
       const t = TESTS.filter((q) => q.st === 'abierta').sort((a, b) => a.queue.length - b.queue.length || d(a) - d(b))[0];
       if (!t) return;
+      t.el.classList.add('tour-on'); window.__tourBeam = t;
       W.flyTo(at(t.x, t.z), 260, 52, null, 2000); spin(2000);
       later(() => { V.toast(`Organización: ${t.name} tiene poca espera, a ${Math.round(d(t) / 10) * 10} m · ${t.cell}`, ORG); sfx([[988, 0.1, 0, 0.07], [1318, 0.12, 0.14, 0.07]]); }, 1200);
     } },
     { t: 'Pero esto no es solo para ayudar a los jugadores…', dark: true, btn: '¿Y entonces?', run() { in3D(); spin(0); } },
     { t: '¿Qué pasaría si los zombis supieran dónde está la gente?', dark: true, red: true, btn: 'A ver, enséñamelo', run() { in3D(); spin(0); V.boom(0.16); } },
-    { t: 'Vamos a mirarlo de cerca', d: 'Un trozo de la noche, desde arriba. Lo naranja es gente. O cena, según a quién preguntes. El rombo rojo, una horda.', run() { set1(); } },
-    { t: 'Caso 1: la pista', d: 'Esta horda baja por la calle. A la vuelta de la esquina hay gente, pero no lo sabe.', note: 'Ejemplo a cámara rápida', run() {
+    { hold: 900, t: 'Vamos a mirarlo de cerca', d: 'Un trozo de la noche, desde arriba. Lo naranja es gente. O cena, según a quién preguntes. El rombo rojo, una horda.', run() { set1(); } },
+    { hold: 'guion', t: 'Caso 1: la pista', d: 'Esta horda baja por la calle. A la vuelta de la esquina hay gente, pero no lo sabe.', note: 'Ejemplo a cámara rápida', run() {
       const { z, gs } = set1();
       later(() => go(z, C1.corner, 11, () => go(z, C1.turn, 11, () => {
         gs.forEach((g) => scatter(g, C1.run, 7));
-        say1('Y ahí estaban. Ya no ha sido casualidad.');
+        say1('Y ahí estaban. Ya no ha sido casualidad.'); later(done, 1800);
       })), 500);
       later(() => say1(`«${z.jefe}, en la siguiente gira a la derecha: ahí tienes gente.»`), 3600);
     } },
-    { t: 'Caso 2: el escondite', d: 'Por el paseo sube un grupo grande. Por la calle de al lado, una horda va a salirle de frente.', note: 'Ejemplo a cámara rápida', run() {
-      const z = HORDES[1], gs = crowd(8), from = [-215, 95], hide = [-150, 41], corner = [-138, 31];
-      const walk = [[-97, 122], [-114, 88], [-138, 31], [-147, 4], [-154, -26], [-162, -58]];
-      stage([z], gs, [from, walk[0], [-154, -26]]); putH(z, from); column(gs, walk, 8);
-      later(() => go(z, [hide], 9, () => { z.st = 'rest'; }), 300);
-      later(() => say1(`«${z.jefe}, quietos y escondeos: viene un grupo grande.»`), 3000);
-      later(() => say1('Se quedan en la esquina. El grupo sigue andando. Nadie mira hacia allí.'), 7600);
-      later(() => {
+    { hold: 'guion', t: 'Caso 2: el escondite', d: 'Esta horda baja por la Rúa. Un grupo viene detrás, por la misma calle, y no la ha visto.', note: 'Ejemplo a cámara rápida', run() {
+      // todos por la Rúa de Dato hacia el sur: la horda delante y el grupo detrás. La callejuela es la Calle San Antón, a la izquierda
+      const z = HORDES[1], gs = crowd(6), from = [147, -66], ahead = [[154, -56], [160, -47], [163, -40], [167, -29]];
+      const alley = [[172, -30], [184, -35]], front = [[172, -30], [167, -29]];
+      const walk = [[108, -117], [122, -97], [124, -95], [131, -87], [137, -78], [147, -66], [154, -56], [160, -47], [163, -40]];
+      const back = [[147, -66], [137, -78], [122, -97], [108, -117], [89, -140]];
+      stage([z], gs, [[108, -117], from, [184, -35], [167, -29]]); putH(z, from);
+      later(() => go(z, ahead, 5, () => go(z, alley, 5, () => {
+        z.st = 'rest'; say1('Desaparece. El grupo sigue andando, tan tranquilo.');
+      })), 400);
+      later(() => say1(`«${z.jefe}, tienes un grupo detrás. Métete en la callejuela de la izquierda y espera.»`), 2800);
+      column(gs, walk, 6, () => {
         say1('«¡Ahora!»');
-        go(z, [corner, [-141, 21]], 15, () => {
-          gs.forEach((g, k) => scatter(g, k < 4 ? [[-154, -26], [-162, -58]] : [[-114, 88], [-97, 122]], 8));
-          say1('Un grupo grande, mirando al frente. Y una esquina que no miraba nadie.');
+        go(z, front, 16, () => {
+          gs.forEach((g) => scatter(g, back, 9));
+          say1('Por delante y sin avisar. Nadie vuelve a mirar el móvil en toda la noche.'); later(done, 2200);
         });
-      }, 11200);
+      });
     } },
-    { t: 'Caso 3: la maldad absoluta', d: 'La Rúa de Dato: larga y estrecha. Entra un grupo muy tranquilo.', note: 'Ejemplo a cámara rápida', run() {
+    { hold: 'guion', t: 'Caso 3: la maldad absoluta', d: 'La Rúa de Dato: larga y estrecha. Entra un grupo muy tranquilo.', note: 'Ejemplo a cámara rápida', run() {
       const a = HORDES[2], b = HORDES[3], gs = crowd(8), rua = [[108, -117], [89, -140], [66, -159], [55, -182]];
       stage([a, b], gs, [[122, -97], [25, -306]]);
       putH(a, [25, -306], true); putH(b, [106, -80], true); column(gs, rua, 8);
@@ -5703,24 +5717,28 @@ const startTour = (() => {
       later(() => {
         say1('«Ahora.»');
         go(a, [[30, -291], [40, -263], [49, -234], [52, -208]], 12);
-        go(b, [[122, -97], [108, -117], [89, -140], [70, -156]], 12, () => say1('Por delante, zombis. Por detrás, zombis. Buena suerte.'));
+        go(b, [[122, -97], [108, -117], [89, -140], [70, -156]], 12, () => { say1('Por delante, zombis. Por detrás, zombis. Buena suerte.'); later(done, 1800); });
       }, 8000);
     } },
-    { t: 'Y así, todo el pueblo', html: `<ul class="tour-l"><li><i class="g"></i>Gente</li><li><i class="z"><b>7</b></i>Zombis, y cuántos son</li>
-      <li><i class="t">2</i>Pruebas: verde, poca espera; rojo, mucha</li><li><i class="s">S</i>Staff, por su función</li></ul>`, run() {
+    { hold: 1000, t: 'Y esto, en todo el pueblo', d: 'Alguien lo ve todo a la vez y va decidiendo. El resto lo ponen los zombis.', run() {
       if (view !== 'org') setView('org');
-      Object.assign(MAP.LAY, { foto: false, grid: false, zones: false, points: false, staff: true, tests: true, hordes: true, heat: true, groups: true }); MAP.home(900);
+      Object.assign(MAP.LAY, { foto: false, grid: false, zones: false, points: false, staff: false, tests: false, hordes: true, heat: true, groups: false }); MAP.home(900);
     } },
-    { t: 'Esto es lo que probaríamos', d: 'En Calatayud, con los zombis y un grupo de jugadores base. A ver quién sobrevive.', last: true, run() {
-      in3D(); W.overview(false, 2600); spin(2600);
+    { hold: 2600, empty: true, t: 'Esto es lo que probaríamos', d: 'En Calatayud, con los zombis y un grupo de jugadores base. A ver quién sobrevive.', last: true, run() {
+      in3D(); W.flyTo(at(tower.x, tower.z), 380, 70, 0.9, 2600); spin(2600);
     } },
   ];
   function show(n) {
     timers.forEach(clearTimeout); timers = []; turn.on = false;
     if (MV.st !== 'idle') cancelMove();
-    unstage();
+    unstage(); V.dropPing('tour-reu');
+    for (const q of TESTS) q.el.classList.remove('tour-on');
     i = Math.max(0, Math.min(STEPS.length - 1, n));
     const s = STEPS[i];
+    document.body.classList.toggle('tour-tags', !!s.tags);
+    window.__tourBeam = null; window.__tourEmpty = !!s.empty;
+    next.disabled = !!s.hold;
+    if (typeof s.hold === 'number') later(done, s.hold); else if (s.hold) later(done, 30000);
     s.run();
     title.textContent = s.t; text.hidden = !s.d && !s.html;
     if (s.html) text.innerHTML = s.html; else text.textContent = s.d || '';
@@ -5733,8 +5751,11 @@ const startTour = (() => {
   function finish() {
     timers.forEach(clearTimeout); turn.on = false;
     if (MV.st !== 'idle') cancelMove();
+    document.body.classList.remove('tour-tags'); delete window.__tourBeam; window.__tourEmpty = false;
     unstage(); box.remove(); veil.remove(); SIM.nextInc = CLK.t + 50; document.body.classList.remove('tour'); Object.assign(MAP.LAY, LAY0);
+    V.dropPing('tour-reu');
     if (view === 'org') setView('player');
+    W.flyTo(at(crew[0].x, crew[0].z), 300, 55, null, 1600);
     tip('Ahora prueba tú: toca el mapa, pulsa <b>2D</b> o <b>3D</b>, o cambia a <b>Organización</b>.');
     startPlayerLife();
   }
