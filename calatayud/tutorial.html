@@ -5750,12 +5750,14 @@ const startTour = (() => {
     { hold: 2800, empty: true, t: 'Las referencias de siempre', d: 'Torres, castillos y plaza de toros. Para saber dónde estás mientras corres.', run() {
       in3D(); W.flyTo(at(tower.x, tower.z), 170, 77, 2.3, 2800); spin(2800); FX.whoosh(2.7, 0.9);
     } },
-    { hold: 1800, t: 'En el móvil, un plano claro', d: 'Calles, pruebas y tu grupo. Perderse ya no es excusa.', run() {
+    { hold: 2600, tags: true, t: 'En el móvil, un plano claro', d: 'Calles, pruebas y tu grupo. Perderse ya no es excusa.', run() {
       FX.whoosh(1.6, 0.7);
       if (view === 'org') setView('player');
-      const m = midView();
-      if (W.is2D) { W.flyTo(at(m.x, m.z), 440, 0, 0, 900); return; }
-      W.flyTo(at(m.x, m.z), 560, 50, null, 900); later(() => { W.toggle2D(); later(() => W.flyTo(at(m.x, m.z), 440, 0, 0, 700), 900); }, 950);
+      crew.forEach(home);
+      // tú y el grupo enteros, por encima de la tarjeta y debajo de la regla: en vertical sobra alto, en apaisado hay que alejarse
+      const wide = innerWidth > innerHeight, m = midView(), d = wide ? 560 : 440; if (!wide) m.z += 30;
+      if (W.is2D) { W.flyTo(at(m.x, m.z), d, 0, 0, 900); return; }
+      W.flyTo(at(m.x, m.z), 560, 50, null, 900); later(() => { W.toggle2D(); later(() => W.flyTo(at(m.x, m.z), d, 0, 0, 700), 900); }, 950);
     } },
     { hold: 3600, empty: true, t: 'Y con un botón, en 3D', d: 'El pueblo se levanta justo donde mirabas. No hacía ninguna falta, pero mira qué bonito.', run() {
       FX.whoosh(3.4); V.boom(0.3); later(() => V.boom(0.22), 900);
@@ -5844,7 +5846,7 @@ const startTour = (() => {
     i = Math.max(0, Math.min(STEPS.length - 1, n));
     const s = STEPS[i];
     document.body.classList.toggle('tour-tags', !!s.tags);
-    window.__tourBeam = null; window.__tourEmpty = !!s.empty;
+    window.__tourBeam = null; window.__tourEmpty = !!s.empty; crew.forEach(place);   // place enseña o esconde al grupo según el paso
     V.amb.vol = s.dark ? 0.45 : 1.3; V.duckAmbient(false);   // en el giro, el ambiente baja y se queda el corazón
     next.disabled = !!s.hold;
     if (typeof s.hold === 'number') later(done, s.hold); else if (s.hold) later(done, 30000);
