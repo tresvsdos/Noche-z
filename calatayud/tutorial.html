@@ -3753,11 +3753,11 @@ function boom(vol) {
   for (const x of [g, ng]) { x.connect(amb.g); x.connect(amb.verb); }
   o.start(t0); o.stop(t0 + 2.4); n.start(t0); n.stop(t0 + 2.5);
 }
-const ambAudible = () => amb.on && !power.pocket && document.visibilityState === 'visible';
+const ambAudible = () => amb.on && (amb.force || !power.pocket) && document.visibilityState === 'visible';   // force: el tutorial suena también con el 3D parado
 function ambLevel() {
   const on = ambAudible();
   if (amb.g) {
-    const c = on ? audioCtx() : actx, v = on ? AMB_VOL * (amb.duck ? 0.2 : 1) : 0;
+    const c = on ? audioCtx() : actx, v = on ? AMB_VOL * (amb.vol || 1) * (amb.duck && !amb.force ? 0.2 : 1) : 0;
     if (on && !amb.wired) { amb.g.connect(c.destination); amb.wired = true; }
     amb.g.gain.setTargetAtTime(v, c.currentTime, v ? 0.8 : 0.25);
   }
@@ -4132,6 +4132,10 @@ body.tour .cp-bar { visibility: hidden; }
 .tour-l .s { border-radius: 50%; background: #10131a; border: 2px solid #4aa3ff; color: #4aa3ff; box-sizing: border-box; }
 .tour-n:disabled { opacity: .35; cursor: default; }
 .tour-n { transition: opacity .3s; }
+.tour-m { position: absolute; right: 62px; top: 13px; border: 0; background: none; color: var(--ash); font-size: 13px; cursor: pointer; padding: 6px; }
+.tour-c.dark .tour-m { display: none; }
+.tour-c h2 { margin-right: 150px; }
+.tour-c.dark h2 { margin-right: 0; }
 </style>
 <script>
 // Rutas por calles y plazas para los muñecos simulados del vídeo (video.js) y de la demo (demo.js): nunca a través de un edificio.
@@ -4199,6 +4203,8 @@ const toLL = (x, z) => ({ lon: (x / 0.691322751 + 2048) / 4096 * 0.033822149 - 1
 const ORG = '#ffd21f';
 const PHONE = matchMedia('(pointer: coarse)').matches;
 const TOUR = true;   // true en tutorial.html (lo cambia assemble.py)
+const AMB0 = V.amb.on;
+if (TOUR) Object.assign(V.amb, { on: true, force: true, vol: 1.3 });   // el tutorial siempre suena, también en el móvil, y más alto que el mapa
 let seed = 7;
 const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;   // con semilla: los grupos salen siempre en los mismos sitios
 document.body.classList.add('dm');
@@ -5580,7 +5586,7 @@ const startTour = (() => {
   const W = window.__pv, cam = V.cam, at = (x, z) => new THREE.Vector3(x, 0, z);
   const box = document.createElement('section');
   box.className = 'tour-c'; box.setAttribute('aria-live', 'polite');
-  box.innerHTML = `<div class="tour-p"><i></i></div><button type="button" class="tour-x">Saltar</button><h2></h2><p></p>
+  box.innerHTML = `<div class="tour-p"><i></i></div><button type="button" class="tour-m" aria-pressed="false">Quitar sonido</button><button type="button" class="tour-x">Saltar</button><h2></h2><p></p>
     <div class="tour-b"><button type="button" class="tour-a">Atrás</button><small>Datos simulados</small><button type="button" class="tour-n">Siguiente</button></div>`;
   const [bar, title, text, back, next] = ['.tour-p i', 'h2', 'p', '.tour-a', '.tour-n'].map((s) => box.querySelector(s));
   const veil = document.createElement('div'); veil.className = 'tour-veil';
@@ -5631,6 +5637,102 @@ const startTour = (() => {
   const say1 = (t) => { text.textContent = t; };
   // «Siguiente» se enciende cuando acaba lo que se está enseñando
   const done = () => { next.disabled = false; };
+  // el sonido del tutorial: aquí la gente está atenta, así que va muy por encima del ambiente del mapa. Todo sintetizado
+  const FX = (() => {
+    const LOUD = 1.1;
+    let bus = null, rev = null, live = [], on = true, meter = null;
+    const R = Math.random;
+    function ctx() {
+      const c = V.audioCtx(); if (c.state !== 'running') return null;
+      if (bus) return c;
+      const comp = c.createDynamicsCompressor(); comp.threshold.value = -14; comp.knee.value = 6; comp.ratio.value = 12; comp.attack.value = 0.002; comp.release.value = 0.16;
+      // tope suave: fuerte sin que se rompa el sonido por encima de 1
+      const lim = c.createWaveShaper(), curve = new Float32Array(1024);
+      for (let k = 0; k < 1024; k++) curve[k] = Math.tanh((k / 511.5 - 1) * 1.9) * 0.97;
+      lim.curve = curve;
+      meter = c.createAnalyser(); meter.fftSize = 2048;
+      bus = c.createGain(); bus.gain.value = on ? LOUD : 0; bus.connect(comp); comp.connect(lim); lim.connect(meter); meter.connect(c.destination);
+      const ir = c.createBuffer(2, Math.floor(c.sampleRate * 1.8), c.sampleRate);
+      for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let k = 0; k < d.length; k++) d[k] = (R() * 2 - 1) * Math.pow(1 - k / d.length, 2.6); }
+      rev = c.createConvolver(); rev.buffer = ir; const w = c.createGain(); w.gain.value = 0.32; rev.connect(w); w.connect(bus);
+      return c;
+    }
+    const noise = (c, secs) => { const b = c.createBuffer(1, Math.floor(c.sampleRate * secs), c.sampleRate), d = b.getChannelData(0); for (let k = 0; k < d.length; k++) d[k] = R() * 2 - 1; const n = c.createBufferSource(); n.buffer = b; return n; };
+    // una envolvente que sube, se mantiene y cae; lo que entra en ella se apaga solo y FX.stop lo corta si cambias de paso
+    function amp(c, t, a, v, hold, d, wet) {
+      const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(v, 0.001), t + a);
+      g.gain.setValueAtTime(Math.max(v, 0.001), t + a + hold); g.gain.exponentialRampToValueAtTime(0.0001, t + a + hold + d);
+      g.connect(bus); if (wet) g.connect(rev);
+      return g;
+    }
+    const play = (c, n, t, end) => { n.start(t); n.stop(end); live.push(n); };
+    const filt = (c, type, f, q = 1) => { const x = c.createBiquadFilter(); x.type = type; x.frequency.value = f; x.Q.value = q; return x; };
+    const api = {
+      peak() { if (!meter) return 0; const b = new Float32Array(meter.fftSize); meter.getFloatTimeDomainData(b); let m = 0; for (const v of b) m = Math.max(m, Math.abs(v)); return m; },
+      mute(v) { on = !v; if (bus) bus.gain.value = on ? LOUD : 0; },
+      stop() { for (const n of live) { try { n.stop(); } catch (e) { /* ya acabó */ } } live = []; },
+      // la cámara al volar
+      whoosh(secs, v = 1) {
+        const c = ctx(); if (!c) return; const t = c.currentTime + 0.02, n = noise(c, secs + 0.3), f = filt(c, 'bandpass', 240, 0.9);
+        f.frequency.setValueAtTime(240, t); f.frequency.exponentialRampToValueAtTime(1700, t + secs * 0.55); f.frequency.exponentialRampToValueAtTime(260, t + secs);
+        n.connect(f); f.connect(amp(c, t, secs * 0.45, 0.6 * v, 0, secs * 0.5, true)); play(c, n, t, t + secs + 0.2);
+      },
+      thud(at = 0, v = 1) {
+        const c = ctx(); if (!c) return; const t = c.currentTime + 0.02 + at, o = c.createOscillator();
+        o.frequency.setValueAtTime(92, t); o.frequency.exponentialRampToValueAtTime(40, t + 0.17);
+        o.connect(amp(c, t, 0.008, 0.95 * v, 0, 0.26)); play(c, o, t, t + 0.34);
+      },
+      heart(n = 4, gap = 0.9) { for (let k = 0; k < n; k++) { api.thud(k * gap, 1); api.thud(k * gap + 0.21, 0.72); } },
+      // el clic del pinganillo al hablar
+      radio() {
+        const c = ctx(); if (!c) return; const t = c.currentTime + 0.02;
+        for (const [at, len] of [[0, 0.06], [0.1, 0.13]]) { const n = noise(c, 0.2), f = filt(c, 'bandpass', 2300, 1.2); n.connect(f); f.connect(amp(c, t + at, 0.004, 0.42, len, 0.03)); play(c, n, t + at, t + at + len + 0.05); }
+        const o = c.createOscillator(); o.type = 'square'; o.frequency.value = 1320; o.connect(amp(c, t, 0.003, 0.09, 0.04, 0.03)); play(c, o, t, t + 0.1);
+      },
+      chime() {
+        const c = ctx(); if (!c) return; const t = c.currentTime + 0.02;
+        for (const [f, at] of [[988, 0], [1318, 0.13]]) { const o = c.createOscillator(); o.frequency.value = f; o.connect(amp(c, t + at, 0.006, 0.34, 0.02, 0.4, true)); play(c, o, t + at, t + at + 0.5); }
+      },
+      growl(secs = 2.2, v = 1) {
+        const c = ctx(); if (!c) return; const t = c.currentTime + 0.02, o = c.createOscillator(), p = c.createOscillator(), pg = c.createGain(), l = c.createOscillator(), lg = c.createGain(), mod = c.createGain();
+        o.type = 'sawtooth'; o.frequency.setValueAtTime(74, t); o.frequency.exponentialRampToValueAtTime(52, t + secs);
+        p.frequency.value = 5.3; pg.gain.value = 7; p.connect(pg); pg.connect(o.frequency);
+        l.frequency.value = 12; lg.gain.value = 0.45; mod.gain.value = 0.55; l.connect(lg); lg.connect(mod.gain);
+        const f = filt(c, 'lowpass', 640, 5); o.connect(f); f.connect(mod); mod.connect(amp(c, t, 0.14, 0.72 * v, secs * 0.5, secs * 0.4, true));
+        const n = noise(c, secs), nf = filt(c, 'bandpass', 420, 2); n.connect(nf); nf.connect(amp(c, t, 0.14, 0.2 * v, secs * 0.5, secs * 0.4));
+        for (const x of [o, p, l, n]) play(c, x, t, t + secs + 0.1);
+      },
+      // el susto: un golpe disonante
+      sting(v = 1) {
+        const c = ctx(); if (!c) return; const t = c.currentTime + 0.02, f = filt(c, 'lowpass', 5200, 1), g = amp(c, t, 0.008, 0.42 * v, 0.07, 1.25, true);
+        f.frequency.setValueAtTime(5200, t); f.frequency.exponentialRampToValueAtTime(420, t + 1.1); f.connect(g);
+        for (const hz of [110, 116.5, 164.8, 174.6, 246.9, 261.6, 370]) { const o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.value = hz; o.connect(f); play(c, o, t, t + 1.45); }
+        const n = noise(c, 0.3); n.connect(amp(c, t, 0.004, 0.5 * v, 0, 0.22)); play(c, n, t, t + 0.28); api.thud(0, 1);
+      },
+      screams(k = 4) {
+        const c = ctx(); if (!c) return;
+        for (let q = 0; q < k; q++) {
+          const t = c.currentTime + 0.05 + q * 0.13 + R() * 0.12, len = 0.55 + R() * 0.45, f0 = 640 + R() * 480, o = c.createOscillator(), vb = c.createOscillator(), vg = c.createGain();
+          o.type = 'sawtooth'; o.frequency.setValueAtTime(f0 * 0.85, t); o.frequency.linearRampToValueAtTime(f0 * 1.14, t + 0.12); o.frequency.exponentialRampToValueAtTime(f0 * 0.6, t + len);
+          vb.frequency.value = 6 + R() * 3; vg.gain.value = 20; vb.connect(vg); vg.connect(o.frequency);
+          const f = filt(c, 'bandpass', 1300 + R() * 700, 2.6); o.connect(f); f.connect(amp(c, t, 0.04, 0.3, len * 0.5, len * 0.45, true));
+          play(c, o, t, t + len + 0.05); play(c, vb, t, t + len + 0.05);
+        }
+      },
+      // gente corriendo
+      run(secs = 2.4) {
+        const c = ctx(); if (!c) return;
+        for (let at = 0; at < secs; at += 0.075 + R() * 0.07) { const t = c.currentTime + 0.03 + at, n = noise(c, 0.07), f = filt(c, 'lowpass', 620 + R() * 500, 1); n.connect(f); f.connect(amp(c, t, 0.004, 0.2 * (1 - at / secs * 0.7), 0, 0.055)); play(c, n, t, t + 0.07); }
+      },
+      // un fondo grave que va subiendo la tensión
+      drone(secs = 8, v = 1) {
+        const c = ctx(); if (!c) return; const t = c.currentTime + 0.02, f = filt(c, 'lowpass', 210, 2), g = amp(c, t, secs * 0.7, 0.55 * v, secs * 0.2, secs * 0.1);
+        f.connect(g);
+        for (const hz of [41.2, 41.9, 61.7]) { const o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.value = hz; o.connect(f); play(c, o, t, t + secs + 0.1); }
+      },
+    };
+    return api;
+  })();
   // caso 1: la esquina de Justo Navarro con Madre Rafols
   const C1 = { from: [445, 246], corner: [[419, 214], [387, 170], [383, 165]], turn: [[390, 160], [430, 132]], people: [446, 121], run: [[458, 113], [452, 104], [402, 34]] };
   const set1 = () => {
@@ -5640,21 +5742,23 @@ const startTour = (() => {
     return { z, gs };
   };
   const STEPS = [
-    { hold: 4200, empty: true, t: 'Calatayud, de noche', d: 'Todo el pueblo en 3D. Ya puedes ir eligiendo dónde esconderte.', run() {
+    { hold: 4200, empty: true, note: 'Mejor con sonido', t: 'Calatayud, de noche', d: 'Todo el pueblo en 3D. Ya puedes ir eligiendo dónde esconderte.', run() {
       in3D();
       if (i === 0 && !turn.from) { cam.dist = 2500; cam.phi = THREE.MathUtils.degToRad(8); cam.theta = 0.12 - 1.2; V.applyCam(); }
-      W.flyTo(at(tower.x, tower.z), 330, 72, -0.5, 4200); spin(4200);
+      W.flyTo(at(tower.x, tower.z), 330, 72, -0.5, 4200); spin(4200); FX.whoosh(4);
     } },
     { hold: 2800, empty: true, t: 'Las referencias de siempre', d: 'Torres, castillos y plaza de toros. Para saber dónde estás mientras corres.', run() {
-      in3D(); W.flyTo(at(tower.x, tower.z), 170, 77, 2.3, 2800); spin(2800);
+      in3D(); W.flyTo(at(tower.x, tower.z), 170, 77, 2.3, 2800); spin(2800); FX.whoosh(2.7, 0.9);
     } },
     { hold: 1800, t: 'En el móvil, un plano claro', d: 'Calles, pruebas y tu grupo. Perderse ya no es excusa.', run() {
+      FX.whoosh(1.6, 0.7);
       if (view === 'org') setView('player');
       const m = midView();
       if (W.is2D) { W.flyTo(at(m.x, m.z), 440, 0, 0, 900); return; }
       W.flyTo(at(m.x, m.z), 560, 50, null, 900); later(() => { W.toggle2D(); later(() => W.flyTo(at(m.x, m.z), 440, 0, 0, 700), 900); }, 950);
     } },
     { hold: 3600, empty: true, t: 'Y con un botón, en 3D', d: 'El pueblo se levanta justo donde mirabas. No hacía ninguna falta, pero mira qué bonito.', run() {
+      FX.whoosh(3.4); V.boom(0.3); later(() => V.boom(0.22), 900);
       if (view === 'org') setView('player');
       if (W.is2D) W.toggle2D(); else { const m = midView(); W.flyTo(at(m.x, m.z), 420, 60, -0.5, 1800); }
       spin(3600);
@@ -5664,6 +5768,7 @@ const startTour = (() => {
       const me = crew[0], m = midView();
       W.flyTo(at(m.x, m.z), 300, 55, null, 1800);
       later(() => {
+        FX.chime();
         V.onPing({ k: 'k', t: 'reunion', id: 'mdemo1', name: 'Laura', col: crew[1].col, pid: 'tour-reu', x: me.x, z: me.z, cell: cellAt(me.x, me.z) });
         crewAnchor.x = me.x; crewAnchor.z = me.z;
         let left = crew.length - 1;
@@ -5677,18 +5782,20 @@ const startTour = (() => {
       if (!t) return;
       t.el.classList.add('tour-on'); window.__tourBeam = t;
       W.flyTo(at(t.x, t.z), 260, 52, null, 2000); spin(2000);
-      later(() => { V.toast(`Organización: ${t.name} tiene poca espera, a ${Math.round(d(t) / 10) * 10} m · ${t.cell}`, ORG); sfx([[988, 0.1, 0, 0.07], [1318, 0.12, 0.14, 0.07]]); }, 1200);
+      later(() => { FX.chime(); V.toast(`Organización: ${t.name} tiene poca espera, a ${Math.round(d(t) / 10) * 10} m · ${t.cell}`, ORG); sfx([[988, 0.1, 0, 0.07], [1318, 0.12, 0.14, 0.07]]); }, 1200);
     } },
-    { t: 'Pero esto no es solo para ayudar a los jugadores…', dark: true, btn: '¿Y entonces?', run() { in3D(); spin(0); } },
-    { t: '¿Qué pasaría si los zombis supieran dónde está la gente?', dark: true, red: true, btn: 'A ver, enséñamelo', run() { in3D(); spin(0); V.boom(0.16); } },
-    { hold: 900, t: 'Vamos a mirarlo de cerca', d: 'Un trozo de la noche, desde arriba. Lo naranja es gente. O cena, según a quién preguntes. El rombo rojo, una horda.', run() { set1(); } },
+    { t: 'Pero esto no es solo para ayudar a los jugadores…', dark: true, btn: '¿Y entonces?', run() { in3D(); spin(0); FX.heart(5, 1); FX.drone(7, 0.7); } },
+    { t: '¿Qué pasaría si los zombis supieran dónde está la gente?', dark: true, red: true, btn: 'A ver, enséñamelo', run() { in3D(); spin(0); FX.sting(1); FX.growl(2.6, 1); later(() => FX.heart(4, 0.8), 1800); } },
+    { hold: 900, t: 'Vamos a mirarlo de cerca', d: 'Un trozo de la noche, desde arriba. Lo naranja es gente. O cena, según a quién preguntes. El rombo rojo, una horda.', run() { set1(); FX.radio(); } },
     { hold: 'guion', t: 'Caso 1: la pista', d: 'Esta horda baja por la calle. A la vuelta de la esquina hay gente, pero no lo sabe.', note: 'Ejemplo a cámara rápida', run() {
       const { z, gs } = set1();
+      FX.growl(2.4, 0.7); later(() => FX.growl(2.4, 0.8), 6500);
       later(() => go(z, C1.corner, 11, () => go(z, C1.turn, 11, () => {
         gs.forEach((g) => scatter(g, C1.run, 7));
+        FX.sting(0.85); FX.screams(4); FX.run(2.4);
         say1('Y ahí estaban. Ya no ha sido casualidad.'); later(done, 1800);
       })), 500);
-      later(() => say1(`«${z.jefe}, en la siguiente gira a la derecha: ahí tienes gente.»`), 3600);
+      later(() => { FX.radio(); say1(`«${z.jefe}, en la siguiente gira a la derecha: ahí tienes gente.»`); }, 3600);
     } },
     { hold: 'guion', t: 'Caso 2: el escondite', d: 'Esta horda baja por la Rúa. Un grupo viene detrás, por la misma calle, y no la ha visto.', note: 'Ejemplo a cámara rápida', run() {
       // todos por la Rúa de Dato hacia el sur: la horda delante y el grupo detrás. La callejuela es la Calle San Antón, a la izquierda
@@ -5696,14 +5803,15 @@ const startTour = (() => {
       const alley = [[172, -30], [184, -35]], front = [[172, -30], [167, -29]];
       const walk = [[108, -117], [122, -97], [124, -95], [131, -87], [137, -78], [147, -66], [154, -56], [160, -47], [163, -40]];
       const back = [[147, -66], [137, -78], [122, -97], [108, -117], [89, -140]];
-      stage([z], gs, [[108, -117], from, [184, -35], [167, -29]]); putH(z, from);
+      stage([z], gs, [[108, -117], from, [184, -35], [167, -29]]); putH(z, from); FX.growl(2.2, 0.6);
       later(() => go(z, ahead, 5, () => go(z, alley, 5, () => {
-        z.st = 'rest'; say1('Desaparece. El grupo sigue andando, tan tranquilo.');
+        z.st = 'rest'; say1('Desaparece. El grupo sigue andando, tan tranquilo.'); FX.heart(4, 0.8);
       })), 400);
-      later(() => say1(`«${z.jefe}, tienes un grupo detrás. Métete en la callejuela de la izquierda y espera.»`), 2800);
+      later(() => { FX.radio(); say1(`«${z.jefe}, tienes un grupo detrás. Métete en la callejuela de la izquierda y espera.»`); }, 2800);
       column(gs, walk, 6, () => {
-        say1('«¡Ahora!»');
+        FX.radio(); say1('«¡Ahora!»');
         go(z, front, 16, () => {
+          FX.sting(1); FX.growl(2, 1); FX.screams(6); FX.run(2.6);
           gs.forEach((g) => scatter(g, back, 9));
           say1('Por delante y sin avisar. Nadie vuelve a mirar el móvil en toda la noche.'); later(done, 2200);
         });
@@ -5712,12 +5820,12 @@ const startTour = (() => {
     { hold: 'guion', t: 'Caso 3: la maldad absoluta', d: 'La Rúa de Dato: larga y estrecha. Entra un grupo muy tranquilo.', note: 'Ejemplo a cámara rápida', run() {
       const a = HORDES[2], b = HORDES[3], gs = crowd(8), rua = [[108, -117], [89, -140], [66, -159], [55, -182]];
       stage([a, b], gs, [[122, -97], [25, -306]]);
-      putH(a, [25, -306], true); putH(b, [106, -80], true); column(gs, rua, 8);
-      later(() => say1(`«${a.jefe}, ${b.jefe}: uno en cada punta. Nadie se mueve hasta que estén en medio.»`), 3000);
+      putH(a, [25, -306], true); putH(b, [106, -80], true); column(gs, rua, 8); FX.drone(16, 0.8);
+      later(() => { FX.radio(); say1(`«${a.jefe}, ${b.jefe}: uno en cada punta. Nadie se mueve hasta que estén en medio.»`); FX.heart(5, 0.95); }, 3000);
       later(() => {
-        say1('«Ahora.»');
+        FX.radio(); say1('«Ahora.»'); FX.growl(3, 1); later(() => FX.growl(3, 1), 1400); FX.heart(9, 0.6);
         go(a, [[30, -291], [40, -263], [49, -234], [52, -208]], 12);
-        go(b, [[122, -97], [108, -117], [89, -140], [70, -156]], 12, () => { say1('Por delante, zombis. Por detrás, zombis. Buena suerte.'); later(done, 1800); });
+        go(b, [[122, -97], [108, -117], [89, -140], [70, -156]], 12, () => { FX.sting(1); FX.screams(7); say1('Por delante, zombis. Por detrás, zombis. Buena suerte.'); later(done, 1800); });
       }, 8000);
     } },
     { hold: 1000, t: 'Y esto, en todo el pueblo', d: 'Alguien lo ve todo a la vez y va decidiendo. El resto lo ponen los zombis.', run() {
@@ -5725,18 +5833,19 @@ const startTour = (() => {
       Object.assign(MAP.LAY, { foto: false, grid: false, zones: false, points: false, staff: false, tests: false, hordes: true, heat: true, groups: false }); MAP.home(900);
     } },
     { hold: 2600, empty: true, t: 'Esto es lo que probaríamos', d: 'En Calatayud, con los zombis y un grupo de jugadores base. A ver quién sobrevive.', last: true, run() {
-      in3D(); W.flyTo(at(tower.x, tower.z), 380, 70, 0.9, 2600); spin(2600);
+      in3D(); W.flyTo(at(tower.x, tower.z), 380, 70, 0.9, 2600); spin(2600); FX.whoosh(2.6, 0.8); V.siren();
     } },
   ];
   function show(n) {
     timers.forEach(clearTimeout); timers = []; turn.on = false;
     if (MV.st !== 'idle') cancelMove();
-    unstage(); V.dropPing('tour-reu');
+    unstage(); V.dropPing('tour-reu'); FX.stop();
     for (const q of TESTS) q.el.classList.remove('tour-on');
     i = Math.max(0, Math.min(STEPS.length - 1, n));
     const s = STEPS[i];
     document.body.classList.toggle('tour-tags', !!s.tags);
     window.__tourBeam = null; window.__tourEmpty = !!s.empty;
+    V.amb.vol = s.dark ? 0.45 : 1.3; V.duckAmbient(false);   // en el giro, el ambiente baja y se queda el corazón
     next.disabled = !!s.hold;
     if (typeof s.hold === 'number') later(done, s.hold); else if (s.hold) later(done, 30000);
     s.run();
@@ -5752,6 +5861,7 @@ const startTour = (() => {
     timers.forEach(clearTimeout); turn.on = false;
     if (MV.st !== 'idle') cancelMove();
     document.body.classList.remove('tour-tags'); delete window.__tourBeam; window.__tourEmpty = false;
+    FX.stop(); Object.assign(V.amb, { force: false, vol: 1, on: AMB0 }); V.duckAmbient(false);
     unstage(); box.remove(); veil.remove(); SIM.nextInc = CLK.t + 50; document.body.classList.remove('tour'); Object.assign(MAP.LAY, LAY0);
     V.dropPing('tour-reu');
     if (view === 'org') setView('player');
@@ -5760,9 +5870,14 @@ const startTour = (() => {
     startPlayerLife();
   }
   next.addEventListener('click', () => { if (STEPS[i].last) finish(); else show(i + 1); });
+  box.querySelector('.tour-m').addEventListener('click', (e) => {
+    const off = e.currentTarget.getAttribute('aria-pressed') !== 'true';
+    e.currentTarget.setAttribute('aria-pressed', String(off)); e.currentTarget.textContent = off ? 'Poner sonido' : 'Quitar sonido';
+    FX.mute(off); V.amb.on = !off; V.duckAmbient(false);
+  });
   back.addEventListener('click', () => show(i - 1));
   box.querySelector('.tour-x').addEventListener('click', finish);
-  window.__tour = { show, finish, get i() { return i; }, n: STEPS.length };
+  window.__tour = { FX, show, finish, get i() { return i; }, n: STEPS.length };
   return () => { firstOrg = false; SIM.nextInc = NEVER; document.body.classList.add('tour'); $('#app').append(veil, box); requestAnimationFrame(spinLoop); show(0); };
 })();
 

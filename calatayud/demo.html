@@ -3740,11 +3740,11 @@ function boom(vol) {
   for (const x of [g, ng]) { x.connect(amb.g); x.connect(amb.verb); }
   o.start(t0); o.stop(t0 + 2.4); n.start(t0); n.stop(t0 + 2.5);
 }
-const ambAudible = () => amb.on && !power.pocket && document.visibilityState === 'visible';
+const ambAudible = () => amb.on && (amb.force || !power.pocket) && document.visibilityState === 'visible';   // force: el tutorial suena también con el 3D parado
 function ambLevel() {
   const on = ambAudible();
   if (amb.g) {
-    const c = on ? audioCtx() : actx, v = on ? AMB_VOL * (amb.duck ? 0.2 : 1) : 0;
+    const c = on ? audioCtx() : actx, v = on ? AMB_VOL * (amb.vol || 1) * (amb.duck && !amb.force ? 0.2 : 1) : 0;
     if (on && !amb.wired) { amb.g.connect(c.destination); amb.wired = true; }
     amb.g.gain.setTargetAtTime(v, c.currentTime, v ? 0.8 : 0.25);
   }
@@ -4145,6 +4145,8 @@ const toLL = (x, z) => ({ lon: (x / 0.691322751 + 2048) / 4096 * 0.033822149 - 1
 const ORG = '#ffd21f';
 const PHONE = matchMedia('(pointer: coarse)').matches;
 const TOUR = false;   // true en tutorial.html (lo cambia assemble.py)
+const AMB0 = V.amb.on;
+if (TOUR) Object.assign(V.amb, { on: true, force: true, vol: 1.3 });   // el tutorial siempre suena, también en el móvil, y más alto que el mapa
 let seed = 7;
 const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;   // con semilla: los grupos salen siempre en los mismos sitios
 document.body.classList.add('dm');

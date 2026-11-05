@@ -3739,11 +3739,11 @@ function boom(vol) {
   for (const x of [g, ng]) { x.connect(amb.g); x.connect(amb.verb); }
   o.start(t0); o.stop(t0 + 2.4); n.start(t0); n.stop(t0 + 2.5);
 }
-const ambAudible = () => amb.on && !power.pocket && document.visibilityState === 'visible';
+const ambAudible = () => amb.on && (amb.force || !power.pocket) && document.visibilityState === 'visible';   // force: el tutorial suena también con el 3D parado
 function ambLevel() {
   const on = ambAudible();
   if (amb.g) {
-    const c = on ? audioCtx() : actx, v = on ? AMB_VOL * (amb.duck ? 0.2 : 1) : 0;
+    const c = on ? audioCtx() : actx, v = on ? AMB_VOL * (amb.vol || 1) * (amb.duck && !amb.force ? 0.2 : 1) : 0;
     if (on && !amb.wired) { amb.g.connect(c.destination); amb.wired = true; }
     amb.g.gain.setTargetAtTime(v, c.currentTime, v ? 0.8 : 0.25);
   }
