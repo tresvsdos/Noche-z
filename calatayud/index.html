@@ -711,9 +711,11 @@ const rnd = mulberry(3110);
 
 // ---------------------------------------------------------------- renderer
 const canvas = $('#gl');
+const COARSE = matchMedia('(pointer: coarse)').matches;
 let renderer;
 try {
-  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+  // en el móvil suaviza los bordes el composer: el lienzo solo recibe la imagen ya terminada
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: !COARSE, powerPreference: COARSE ? 'default' : 'high-performance' });
 } catch (e) {
   $('#load-msg').textContent = 'Tu navegador no puede mostrar WebGL. Prueba con Chrome, Safari o Firefox actualizados.';
   throw e;
@@ -721,9 +723,16 @@ try {
 const DPR = Math.min(window.devicePixelRatio || 1, 1.75);
 renderer.setPixelRatio(DPR);
 // batería: solo se dibuja a tope mientras algo se mueve; en reposo, 30 fps (móvil) o casi nada con el ahorro activado
-const COARSE = matchMedia('(pointer: coarse)').matches;
-const power = { saver: false, wakeUntil: 0, last: 0, pocket: false };
-function kick(ms = 700) { power.wakeUntil = Math.max(power.wakeUntil, performance.now() + ms); }
+const power = { saver: false, wakeUntil: 0, last: 0, drawn: 0, pocket: false };
+// con ahorro y nada que mover, el bucle se duerme con un temporizador: si no se piden fotogramas, el móvil deja de generarlos
+const loop = { on: false, raf: 0, timer: 0 };
+function loopIn(ms) {
+  if (!loop.on || loop.raf) return;
+  clearTimeout(loop.timer); loop.timer = 0;
+  if (ms > 0) loop.timer = setTimeout(() => { loop.timer = 0; loopIn(0); }, ms);
+  else loop.raf = requestAnimationFrame(frame);
+}
+function kick(ms = 700) { power.wakeUntil = Math.max(power.wakeUntil, performance.now() + ms); loopIn(0); }
 function setSaver(v) {
   power.saver = v;
   try { localStorage.setItem('pv-saver', v ? '1' : '0'); } catch (e) { /* sin almacenamiento */ }
@@ -737,7 +746,7 @@ renderer.setClearColor(0x07090c, 1);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(45, 1, 2, 14000);
 // brillo de las luces de noche (fuego, ventanas, farolas, haces): se dibuja en un búfer HDR y lo que pasa de 1 se derrama
-const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 }));
+const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: COARSE ? 2 : 4 }));
 const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.6, 0.45, 0.85);
 // algún píxel suelto de la escena sale NaN o infinito: en pantalla era un punto negro, pero el desenfoque lo convierte en bloques
 {
@@ -746,6 +755,7 @@ const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.6, 0.45, 0.85);
   else console.warn('bloom: no se pudo filtrar la entrada');
 }
 composer.addPass(new RenderPass(scene, camera)); composer.addPass(bloom); composer.addPass(new OutputPass());
+if (COARSE) { const size = bloom.setSize.bind(bloom); bloom.setSize = (w, h) => size(w / 2, h / 2); }   // el brillo es borroso: a media resolución no se nota
 
 // ---------------------------------------------------------------- uniforms compartidos
 const NF = 6;
@@ -964,6 +974,31 @@ function groundH(x, z) {
   return bil(TFH, TER.fn, TER.fn, (x - TER.fx0) / TER.fs, (z - TER.fz0) / TER.fs);
 }
 // rejilla de nx × nz vértices; con faldón, un borde que baja 40 m para que no se vea hueco entre las dos mallas
+// «lo que no se ve no existe»: una malla enorme se dibuja entera aunque solo mires una calle. Troceada en casillas, three.js
+// descarta cada trozo fuera de pantalla y ordena los demás de cerca a lejos, así lo que queda tapado ni se llega a pintar
+function splitTiles(geo, size) {
+  const pos = geo.attributes.position, idx = geo.index?.array, nTri = (idx ? idx.length : pos.count) / 3, tiles = new Map();
+  for (let i = 0; i < nTri; i++) {
+    const a = idx ? idx[i * 3] : i * 3, b = idx ? idx[i * 3 + 1] : i * 3 + 1, c = idx ? idx[i * 3 + 2] : i * 3 + 2;
+    const key = Math.floor((pos.getX(a) + pos.getX(b) + pos.getX(c)) / 3 / size) * 100000 + Math.floor((pos.getZ(a) + pos.getZ(b) + pos.getZ(c)) / 3 / size);
+    let l = tiles.get(key); if (!l) tiles.set(key, l = []);
+    l.push(a, b, c);
+  }
+  const box = new THREE.Box3(), p = new THREE.Vector3();
+  return [...tiles.values()].map((ix) => {
+    const g = new THREE.BufferGeometry();
+    for (const [n, s] of Object.entries(geo.attributes)) {
+      if (idx) { g.setAttribute(n, s); continue; }
+      const k = s.itemSize, d = new Float32Array(ix.length * k);
+      for (let o = 0; o < ix.length; o++) for (let q = 0; q < k; q++) d[o * k + q] = s.array[ix[o] * k + q];
+      g.setAttribute(n, new THREE.BufferAttribute(d, k));
+    }
+    if (idx) g.setIndex(ix);
+    box.makeEmpty(); for (const j of ix) box.expandByPoint(p.fromBufferAttribute(pos, j));
+    g.boundingSphere = box.getBoundingSphere(new THREE.Sphere());
+    return g;
+  });
+}
 function terrainGeo(nx, nz, x0, z0, ts, hAt, skirt) {
   const P = [], idx = [];
   for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) P.push(x0 + i * ts, hAt(i, j), z0 + j * ts);
@@ -1036,8 +1071,8 @@ const ground = new THREE.Mesh(groundGeo, new THREE.ShaderMaterial({
     }`,
 }));
 ground.renderOrder = -5;
-ground.frustumCulled = false;
-scene.add(ground);
+if (TER) for (const g of splitTiles(groundGeo, 500)) { const m = new THREE.Mesh(g, ground.material); m.renderOrder = -5; scene.add(m); }
+else { ground.frustumCulled = false; scene.add(ground); }
 // montes lejanos: dentro del recuadro de la ortofoto se hunden (allí manda la malla cercana)
 if (TER) {
   const W4 = D.wide;
@@ -1057,8 +1092,7 @@ if (TER) {
         gl_FragColor = vec4(applyFog(mix(day, night, uNight), vW), 1.0);
       }`,
   }));
-  far.renderOrder = -6; far.frustumCulled = false;
-  scene.add(far);
+  for (const g of splitTiles(far.geometry, 3000)) { const m = new THREE.Mesh(g, far.material); m.renderOrder = -6; scene.add(m); }
 }
 
 // ---------------------------------------------------------------- edificios
@@ -1263,7 +1297,7 @@ function buildBuildings() {
         gl_FragColor = vec4(applyFog(lineTint(mix(day, night, uNight), vW.xz), vW), 1.0);
       }`,
   });
-  scene.add(new THREE.Mesh(geo, mat));
+  for (const g of splitTiles(geo, 250)) { const m = new THREE.Mesh(g, mat); m.renderOrder = -7; scene.add(m); }   // antes que el suelo: lo que tapan no se pinta
 }
 buildBuildings();
 
@@ -1441,7 +1475,7 @@ function buildMonuments() {
         gl_FragColor = vec4(applyFog(lineTint(mix(day, night, uNight), vW.xz), vW), 1.0);
       }`,
   });
-  scene.add(new THREE.Mesh(geo, mat));
+  const mesh = new THREE.Mesh(geo, mat); mesh.renderOrder = -7; scene.add(mesh);
 }
 buildMonuments();
 
@@ -1513,8 +1547,14 @@ buildMonuments();
 }
 
 // ---------------------------------------------------------------- árboles
+// más de la mitad de los triángulos de la escena eran árboles: van por casillas, y de lejos con una forma de 5 u 8 triángulos
+const TREE_NEAR = 320, treeTiles = [];
+function updateTreeDetail() {
+  const c = camera.position;
+  for (const t of treeTiles) { const near = Math.hypot(t.x - c.x, t.y - c.y, t.z - c.z) - t.r < TREE_NEAR; t.hi.visible = near; t.lo.visible = !near; }
+}
 function treeMesh(list, pine) {
-  const n = list.length / 3; if (!n) return null;
+  const n = list.length / 3; if (!n) return;
   let geo;
   if (pine) {
     const trunk = new THREE.CylinderGeometry(0.12, 0.18, 2.2, 5).translate(0, 1.1, 0);
@@ -1535,7 +1575,9 @@ function treeMesh(list, pine) {
       vCol = ${pine ? 'mix(vec3(0.13, 0.17, 0.11), vec3(0.2, 0.24, 0.14), hh)' : 'mix(vec3(0.16, 0.22, 0.1), vec3(0.3, 0.33, 0.15), hh)'};`,
     color: `vPart < ${pine ? '1.75' : '1.75'} ? vec3(0.22, 0.16, 0.11) : vCol`,
   });
-  const mesh = new THREE.InstancedMesh(geo, mat, n);
+  const low = pine ? new THREE.ConeGeometry(1.0, 3.55, 5, 1, true).translate(0, 3.575, 0).toNonIndexed()
+    : new THREE.OctahedronGeometry(1.0, 0).scale(1, 0.85, 1).translate(0, 2.7, 0);
+  const tiles = new Map();
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), pv = new THREE.Vector3(), yAx = new THREE.Vector3(0, 1, 0);
   for (let i = 0; i < n; i++) {
     const x = list[i * 3], z = list[i * 3 + 1], r = list[i * 3 + 2];
@@ -1543,11 +1585,15 @@ function treeMesh(list, pine) {
     q.setFromAxisAngle(yAx, rnd() * TAU);
     s.set(k, k * (pine ? 1.1 + rnd() * 0.4 : 0.9 + rnd() * 0.25), k);
     m4.compose(pv.set(x, groundH(x, z), z), q, s);
-    mesh.setMatrixAt(i, m4);
+    const key = Math.floor(x / 500) * 100000 + Math.floor(z / 500);
+    if (!tiles.has(key)) tiles.set(key, []);
+    tiles.get(key).push(m4.clone());
   }
-  mesh.frustumCulled = false;
-  scene.add(mesh);
-  return mesh;
+  for (const ms of tiles.values()) {
+    const add = (g) => { const m = new THREE.InstancedMesh(g, mat, ms.length); ms.forEach((a, i) => m.setMatrixAt(i, a)); m.computeBoundingSphere(); m.renderOrder = -7; scene.add(m); return m; };
+    const hi = add(geo), lo = add(low), c = hi.boundingSphere.center;
+    treeTiles.push({ hi, lo, x: c.x, y: c.y, z: c.z, r: hi.boundingSphere.radius });
+  }
 }
 treeMesh(D.trees, false);
 treeMesh(D.forest, true);
@@ -2246,6 +2292,7 @@ function flyTo(target, dist, polarDeg, azimuth = null, dur = 1600) {
   let dT = to.theta - cam.theta; dT = Math.atan2(Math.sin(dT), Math.cos(dT));
   flight = { t0: performance.now(), dur: reduceMotion ? 1 : dur, from: { x: cam.target.x, z: cam.target.z, dist: cam.dist, phi: cam.phi, theta: cam.theta }, to, dT };
   cam.vel.set(0, 0); cam.zoomAnim = null; cam.rotAnim = null;
+  loopIn(0);
 }
 function updateFlight(now) {
   if (!flight) return;
@@ -2733,9 +2780,6 @@ const P2 = (() => {
     }
   }
   function frame(now) {
-    const active = busy() || now < power.wakeUntil;
-    if (!active && now - power.last < 1000 / (power.saver ? 1 : 15) - 4) return;
-    power.last = now;
     const dt = Math.min(clock.getDelta(), 0.1); t += dt;
     updateFlight(now); updateCam(dt); updateTeam(dt);
     draw(now); labels2D();
@@ -2787,19 +2831,33 @@ function updateLabels() {
     if (L.kind === 'place') L.el.style.opacity = String(Math.min(1, Math.max(0, ((L.far || 1300) - dist) / 300)));
   }
 }
-const busy = () => flight || cam.zoomAnim || cam.rotAnim || ptrs.size > 0 || cam.vel.lengthSq() > 0.25
+const busy = () => flight || riseAn || cam.zoomAnim || cam.rotAnim || ptrs.size > 0 || cam.vel.lengthSq() > 0.25
   || Math.abs(nightTarget - U.uNight.value) > 0.003 || Math.abs(gridTarget - U.uGrid.value) > 0.003
   || (team.follow && team.meEntry?.inside && !ptrs.size && Math.hypot(team.meEntry.x - cam.target.x, team.meEntry.z - cam.target.z) > 1);
+// imágenes por segundo mientras algo se mueve: en un móvil de 120 Hz, sin tope, serían 120 con cada dedo en la pantalla
+function movingFps() {
+  if (!COARSE || !power.saver) return 1000;
+  if (flight || riseAn || cam.zoomAnim || cam.rotAnim) return 60;   // los vuelos y la subida del pueblo van suaves: son lo que se enseña
+  if (ptrs.size > 0 || cam.vel.lengthSq() > 0.25 || performance.now() < power.wakeUntil) return 30;
+  return 12;   // seguirte mientras andas: la cámara se mueve despacio
+}
 function frame() {
-  requestAnimationFrame(frame);
-  if (power.pocket) return;
+  loop.raf = 0;
+  if (power.pocket) { loopIn(1000); return; }
   const now = performance.now();
-  if (P2.on) { P2.frame(now); return; }
   const active = busy() || now < power.wakeUntil;
-  const idleFps = power.saver ? 1 : COARSE ? 30 : 60;
-  if (!active && now - power.last < 1000 / idleFps - 4) return;
-  power.last = now;
+  const fps = active ? movingFps() : power.saver ? 1 : P2.on ? 15 : COARSE ? 30 : 60;
+  if (now - power.last >= 1000 / fps - 4) {
+    power.last = now;
+    if (P2.on) P2.frame(now); else frame3D(now, active);
+  }
+  loopIn(power.saver && !active ? 1000 : 0);
+}
+function frame3D(now, active) {
   const real = Math.min(clock.getDelta(), 0.1);
+  // con ahorro y sin tocar nada no cambia ni un píxel: basta con repasar el grupo. Cada 10 s se redibuja por si acaso
+  if (!active && power.saver && now - power.drawn < 10000) { updateTeam(real); updateLabels(); return; }
+  power.drawn = now;
   const dt = active || !power.saver ? real : 0;   // con ahorro y sin tocar nada, el ambiente se queda quieto
   t += dt;
   updateRise(now);
@@ -2840,7 +2898,9 @@ function frame() {
   needle.style.transform = `rotate(${cam.theta}rad)`;
 
   updateTeam(real);
-  if (n > 0.05) { bloom.strength = 0.6 * n; composer.render(real); } else renderer.render(scene, camera);
+  updateTreeDetail();
+  bloom.enabled = n > 0.05;
+  if (bloom.enabled || COARSE) { bloom.strength = 0.6 * n; composer.render(real); } else renderer.render(scene, camera);
   if (now - lastLabel > 30 || !active) { updateLabels(); lastLabel = now; }
 }
 // entrada a la app: con todo cargado aparece «Entrar»; ese toque desbloquea el audio y lanza el vuelo de cámara
@@ -2857,7 +2917,7 @@ let entered = false;
 function enterApp() {
   if (entered || $('#enter').hidden) return;
   entered = true;
-  unlockAudio().then((ok) => { if (ok) $('#audio-unlock')?.remove(); if (ok && amb.on) startAmbient(true); });
+  unlockAudio().then((ok) => { if (ok) $('#audio-unlock')?.remove(); if (ok && amb.on) startAmbient(true); else audioRest(); });
   $('#loader').classList.add('done');
   const fl = document.createElement('div'); fl.className = 'flash'; $('#app').appendChild(fl); setTimeout(() => fl.remove(), 1400);
   if (window.__pvStart) window.__pvStart();
@@ -2871,13 +2931,14 @@ function enterApp() {
   if (!hintSeen && !window.__pvStart) setTimeout(() => { showHint(); setTimeout(hideHint, 9000); }, reduceMotion ? 300 : 3200);   // en la demo no: habla de girar e inclinar, y empieza en el plano
 }
 ['pointerdown', 'pointermove', 'wheel', 'keydown'].forEach((ev) => window.addEventListener(ev, () => kick(), { passive: true, capture: true }));
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') kick(500); });
 {
   let s = null; try { s = localStorage.getItem('pv-saver'); } catch (e) { /* sin almacenamiento */ }
   const v = s == null ? COARSE : s === '1';
   $('#ly-saver').checked = v; setSaver(v);
 }
-requestAnimationFrame(frame);
-window.__pv = { camera, cam, flyTo, overview, toggle2D, start2D, get is2D() { return is2D; }, U, scene, power, busy, bloom };
+loop.on = true; loopIn(0);
+window.__pv = { camera, cam, flyTo, overview, toggle2D, start2D, get is2D() { return is2D; }, U, scene, power, busy, bloom, kick, renderer, composer };
 
 // ================================================================ MODO EQUIPO: GPS en directo + walkie-talkie + avisos
 // Transporte: MQTT sobre WebSocket (servidores públicos, en paralelo y con deduplicación).
@@ -3253,7 +3314,7 @@ function placeEntry(m, isMe) {
   m.av.g.userData.acc.scale.set(Math.min(m.acc || 10, 80), 1, Math.min(m.acc || 10, 80));
   const c = m.inside ? cellName(...worldToGrid(x, z)) : null;
   m.av.L.el.querySelector('.cell').textContent = c || '—';
-  if (moved || wasIn !== m.inside) kick(power.saver ? 80 : 1200);
+  if (moved || wasIn !== m.inside) kick(power.saver ? 34 : 1200);
 }
 function placeMe() {
   if (!team.on || !team.myPos) return;
@@ -3290,7 +3351,7 @@ function updateTeam(dt) {
     const ph = (t * 0.5 + (m === team.meEntry ? 0 : 0.37)) % 1;
     ud.ring.scale.set(4 * s + ph * 10 * s, 1, 4 * s + ph * 10 * s); ud.ring.material.uniforms.uA.value = (1 - ph) * 0.9;
     const stale = isStale(m, now);
-    ud.beam.visible = !stale;
+    if (ud.beam.visible === stale) { ud.beam.visible = !stale; kick(34); }
     m.av.L.el.classList.toggle('stale', stale);
     const age = stale ? shortAgo(now - m.ts) : '';
     if (m.ageTxt !== age) { m.ageTxt = age; const a = m.av.L.el.querySelector('.age'); a.hidden = !age; a.textContent = age; }
@@ -3467,8 +3528,12 @@ async function leaveTeam() {
 
 // ---------- walkie-talkie (PCM μ-law 8 kHz en fragmentos de 0,5 s: suena igual en Android, iPhone y ordenador)
 const RATE = 8000, CH = 2000;   // trozos de 0,25 s: cuanto más cortos, menos tarda en llegar
-let actx = null, bus = null;
-function audioCtx() { if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)(); return actx; }
+let actx = null, bus = null, audioSlept = false;
+function audioCtx() {
+  if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioSlept) { audioSlept = false; actx.resume().catch(() => {}); audioRest(); }
+  return actx;
+}
 async function unlockAudio() {
   try { if (navigator.audioSession && navigator.audioSession.type === 'auto') navigator.audioSession.type = 'playback'; } catch (e) { /* solo Safari */ }
   const c = audioCtx();
@@ -3615,7 +3680,7 @@ function needAudioUnlock() {
 
 // ---------- sonido ambiente: viento, sirenas lejanas, algún estruendo y el helicóptero de la escena; todo sintetizado y flojito
 const AMB_VOL = 0.55;
-const amb = { on: store.get('pv-amb') !== '0', g: null, verb: null, rotor: null, pan: null, duck: false, tSiren: 0, tBoom: 0 };
+const amb = { on: store.get('pv-amb') == null ? !COARSE : store.get('pv-amb') === '1', wired: false, restT: 0, g: null, verb: null, rotor: null, pan: null, duck: false, tSiren: 0, tBoom: 0 };
 function noiseBuffer(c, secs, brown) {
   const n = Math.floor(c.sampleRate * secs), b = c.createBuffer(1, n, c.sampleRate), d = b.getChannelData(0);
   let last = 0;
@@ -3625,7 +3690,7 @@ function noiseBuffer(c, secs, brown) {
 function panner(c, x) { if (!c.createStereoPanner) return null; const p = c.createStereoPanner(); p.pan.value = x; return p; }
 function buildAmbient() {
   const c = audioCtx();
-  amb.g = c.createGain(); amb.g.gain.value = 0; amb.g.connect(c.destination);
+  amb.g = c.createGain(); amb.g.gain.value = 0; amb.g.connect(c.destination); amb.wired = true;
   // reverberación generada: todo suena lejos, entre edificios
   const ir = c.createBuffer(2, c.sampleRate * 3, c.sampleRate);
   for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 3); }
@@ -3676,9 +3741,23 @@ function boom(vol) {
 }
 const ambAudible = () => amb.on && !power.pocket && document.visibilityState === 'visible';
 function ambLevel() {
-  if (!amb.g) return;
-  const v = ambAudible() ? AMB_VOL * (amb.duck ? 0.2 : 1) : 0;
-  amb.g.gain.setTargetAtTime(v, audioCtx().currentTime, v ? 0.8 : 0.25);
+  const on = ambAudible();
+  if (amb.g) {
+    const c = on ? audioCtx() : actx, v = on ? AMB_VOL * (amb.duck ? 0.2 : 1) : 0;
+    if (on && !amb.wired) { amb.g.connect(c.destination); amb.wired = true; }
+    amb.g.gain.setTargetAtTime(v, c.currentTime, v ? 0.8 : 0.25);
+  }
+  if (!on) audioRest();
+}
+// el ambiente en silencio se desconecta (deja de calcularse la reverberación) y, sin walkie, el audio se suspende:
+// un contexto en marcha mantiene despierto el sonido del móvil aunque no suene nada
+function audioRest() {
+  clearTimeout(amb.restT);
+  amb.restT = setTimeout(() => {
+    if (ambAudible() || talk.on) return;
+    if (amb.g && amb.wired) { amb.g.disconnect(); amb.wired = false; }
+    if (actx?.state === 'running' && !team.on) { audioSlept = true; actx.suspend().catch(() => {}); }
+  }, 6000);
 }
 function startAmbient(intro) {
   if (audioCtx().state !== 'running') return;
