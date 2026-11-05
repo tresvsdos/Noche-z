@@ -2294,8 +2294,23 @@ function flyTo(target, dist, polarDeg, azimuth = null, dur = 1600) {
   cam.vel.set(0, 0); cam.zoomAnim = null; cam.rotAnim = null;
   loopIn(0);
 }
+// un recorrido por varios puntos sin pararse en ninguno ({ x, z, dist, phi en grados, theta }): los planos de cine del tutorial. Con soft, frena al llegar
+function flyPath(keys, dur, soft = false) {
+  flight = { t0: performance.now(), dur: reduceMotion ? 1 : dur, soft, keys: keys.map((k) => ({ ...k, phi: THREE.MathUtils.degToRad(k.phi) })) };
+  cam.vel.set(0, 0); cam.zoomAnim = null; cam.rotAnim = null;
+  loopIn(0);
+}
+const spline = (a, b, c, d, t) => 0.5 * (2 * b + (c - a) * t + (2 * a - 5 * b + 4 * c - d) * t * t + (3 * b - a - 3 * c + d) * t * t * t);
+function updatePath(now) {
+  const K = flight.keys, n = K.length - 1, k = Math.min(1, (now - flight.t0) / flight.dur), s = (flight.soft ? 1 - (1 - k) * (1 - k) : k) * n, i = Math.min(n - 1, Math.floor(s)), u = s - i;
+  const a = K[Math.max(0, i - 1)], b = K[i], c = K[i + 1], d = K[Math.min(n, i + 2)], at = (p) => spline(a[p], b[p], c[p], d[p], u);
+  cam.target.set(at('x'), 0, at('z')); cam.dist = at('dist'); cam.phi = at('phi'); cam.theta = at('theta');
+  applyCam();
+  if (k >= 1) flight = null;
+}
 function updateFlight(now) {
   if (!flight) return;
+  if (flight.keys) { updatePath(now); return; }
   const k = Math.min(1, (now - flight.t0) / flight.dur), e = ease(k), f = flight.from, t = flight.to;
   cam.target.set(f.x + (t.x - f.x) * e, 0, f.z + (t.z - f.z) * e);
   cam.dist = Math.exp(Math.log(f.dist) + (Math.log(t.dist) - Math.log(f.dist)) * e);
@@ -2938,7 +2953,7 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
   $('#ly-saver').checked = v; setSaver(v);
 }
 loop.on = true; loopIn(0);
-window.__pv = { camera, cam, flyTo, overview, toggle2D, start2D, get is2D() { return is2D; }, U, scene, power, busy, bloom, kick, renderer, composer };
+window.__pv = { camera, cam, flyTo, flyPath, overview, toggle2D, start2D, get is2D() { return is2D; }, U, scene, power, busy, bloom, kick, renderer, composer };
 
 // ================================================================ MODO EQUIPO: GPS en directo + walkie-talkie + avisos
 // Transporte: MQTT sobre WebSocket (servidores públicos, en paralelo y con deduplicación).
