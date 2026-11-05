@@ -4404,7 +4404,7 @@ const playing = () => GROUPS.filter((g) => g.st !== 'out');
 const totalAlive = () => GROUPS.reduce((a, g) => a + (g.st === 'out' ? 0 : g.alive), 0);
 const totalCaught = () => GROUPS.reduce((a, g) => a + g.caught, 0);
 
-// hordas de zombis: cada una con su jefe (lleva el walkie) y su zona
+// hordas de zombis: cada una con su jefe (lleva el pinganillo) y su zona
 const JEFES = ['Rubén', 'Iratxe', 'Dani', 'Paula', 'Kike', 'Noelia', 'Toni', 'Vero', 'Chema', 'Yolanda', 'Fran', 'Maite', 'Luis', 'Sonia', 'Edu', 'Rosa', 'Quique', 'Nati'];
 const HDEF = [];   // 18 hordas (unos 135 zombis), separadas al menos 120 m
 for (let k = 0; HDEF.length < 18 && k < 2000; k++) {
@@ -4725,7 +4725,7 @@ function resolveInc(inc, txt) {
   log(`Resuelta: ${ITY[inc.ty].t.toLowerCase()}${inc.g ? ` · ${gName(inc.g)}` : ''}`, 'ok');
 }
 
-// avisos: a todos, a una zona, a unos grupos, al staff o a los zombis (por su walkie), con punto en el mapa si hace falta
+// avisos: a todos, a una zona, a unos grupos, al staff o a los zombis (por su pinganillo), con punto en el mapa si hace falta
 function recipients(to) {
   const alive = playing();
   if (to.type === 'all') return { groups: alive };
@@ -4737,7 +4737,7 @@ function recipients(to) {
 }
 const people = (gs) => gs.reduce((a, g) => a + g.alive, 0);
 const toLabel = (to) => (to.type === 'all' ? 'Todos los jugadores' : to.type === 'zone' ? `Zona de ${to.r} m · ${placeOf(to) || 'celda ' + cellAt(to.x, to.z)}`
-  : to.type === 'groups' ? (to.ids.length === 1 ? gName(GROUPS[to.ids[0] - 1]) : `${to.ids.length} grupos`) : to.type === 'staff' ? 'Todo el staff' : 'Todos los zombis (walkie)');
+  : to.type === 'groups' ? (to.ids.length === 1 ? gName(GROUPS[to.ids[0] - 1]) : `${to.ids.length} grupos`) : to.type === 'staff' ? 'Todo el staff' : 'Todos los zombis (pinganillo)');
 function sendNotice(n) {
   n.id = ++SIM.nN; n.t = CLK.t;
   if (n.when) { n.sched = CLK.t + n.when * 60; NOTICES.unshift(n); log(`Aviso programado para las ${hhmm(n.sched)}: «${n.txt}»`, 'n'); say(`Aviso programado para las ${hhmm(n.sched)}`, 'ok'); return n; }
@@ -4777,7 +4777,7 @@ const readN = (n) => Math.round(n.n * n.read0 * (1 - Math.exp(-(CLK.t - n.t) / 8
 function hordeGo(z, p, mode = 'go', quiet) {
   z.st = 'go'; z.goMode = mode; z.target = null; z.home = { x: p.x, z: p.z };
   goTo(z, NAV.freeNear(p.x, p.z), 2.2);
-  if (!quiet) { log(`${z.name} → ${mode === 'ambush' ? 'emboscada en' : mode === 'patrol' ? 'patrullar' : ''} ${where(p)}`.replace('→  ', '→ '), 'z'); radioFx(); say(`Orden a ${z.jefe} (${z.name}) por el walkie`, 'z'); }
+  if (!quiet) { log(`${z.name} → ${mode === 'ambush' ? 'emboscada en' : mode === 'patrol' ? 'patrullar' : ''} ${where(p)}`.replace('→  ', '→ '), 'z'); radioFx(); say(`Orden a ${z.jefe} (${z.name}) por el pinganillo`, 'z'); }
 }
 function hordeRest(z, m = 10) { z.st = 'rest'; z.target = null; z.until = CLK.t + m * 60; goTo(z, rndFree(P.checkin, 6, 30), 1.6); log(`${z.name} a descanso ${m} min`, 'z'); }
 function staffGo(s, p, txt, quiet) {
@@ -4887,7 +4887,7 @@ function simTick(dtReal) {
 // ---------------------------------------------------------------- interfaz: avisar a la gente
 // Íñigo (4-nov): seis secciones eran demasiado, y la organización no mueve a nadie a la fuerza. A los jugadores solo se les avisa
 // («La Farmacia está libre», con la prueba marcada en su mapa) y cada grupo decide: unos van y otros no. A los zombis se les dice
-// por walkie hacia dónde irse. Todo en tiempo real. Si alguien pulsa el SOS, sale arriba con un botón para mandar ayuda.
+// por pinganillo hacia dónde irse. Todo en tiempo real. Si alguien pulsa el SOS, sale arriba con un botón para mandar ayuda.
 const IC = {
   layers: 'M12 3 2 8l10 5 10-5z M2 12.5l10 5 10-5 M2 17l10 5 10-5',
   frame: 'M4 9V4h5 M15 4h5v5 M20 15v5h-5 M9 20H4v-5',
@@ -4951,7 +4951,7 @@ function renderBar() {
     <div class="bt">${btn(`${svg('send')}Enviar aviso <kbd>Intro</kbd>`, 'mv-go', '', 'go')}${btn('Cancelar <kbd>Esc</kbd>', 'mv-x')}</div>`;
   else if (MV.st === 'zdest') h = `<div class="tx"><b>${MV.z.n} zombis</b><small>Haz clic hacia dónde quieres que vayan</small></div>
     <div class="bt">${btn('Cancelar', 'mv-x')}</div>`;
-  else if (MV.st === 'zok') h = `<div class="tx"><b>${MV.z.name} → ${esc(zName(MV.dest))}</b><small>Se lo dices a ${MV.z.jefe}, su jefe, por el walkie: «Moveos hacia ${esc(zName(MV.dest))}».</small></div>
+  else if (MV.st === 'zok') h = `<div class="tx"><b>${MV.z.name} → ${esc(zName(MV.dest))}</b><small>Se lo dices a ${MV.z.jefe}, su jefe, por el pinganillo: «Moveos hacia ${esc(zName(MV.dest))}».</small></div>
     <div class="bt">${btn(`${svg('send')}Decírselo <kbd>Intro</kbd>`, 'mv-go', '', 'go')}${btn('Cancelar <kbd>Esc</kbd>', 'mv-x')}</div>`;
   const b = q$('.cp-bar'); if (b.dataset.h !== h) { b.innerHTML = h; b.dataset.h = h; MAP.layout(); }
   root.classList.toggle('picking', MV.st !== 'idle');
@@ -4972,7 +4972,7 @@ function willGo(g, t) {
   return Math.random() < Math.max(q, 0.45 * (1 - dist(g, t) / 500));
 }
 function sendMove() {
-  if (MV.st === 'zok') { const z = MV.z, d = MV.dest; hordeGo(z, d, 'patrol', true); radioFx(); say(`${z.jefe} por el walkie: «Vamos para ${zName(d)}»`, 'ok'); cancelMove(); return; }
+  if (MV.st === 'zok') { const z = MV.z, d = MV.dest; hordeGo(z, d, 'patrol', true); radioFx(); say(`${z.jefe} por el pinganillo: «Vamos para ${zName(d)}»`, 'ok'); cancelMove(); return; }
   if (MV.st !== 'ok') return;
   const t = MV.t, gs = MV.gs.slice(), o = { t, sent: gs.length, go: [], t0: CLK.t, pend: gs.length };
   sendNotice({ txt: msgFor(t), kind: 'info', to: { type: 'groups', ids: gs.map((g) => g.id) }, pt: { x: t.x, z: t.z }, quiet: true });
