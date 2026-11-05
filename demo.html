@@ -3887,9 +3887,15 @@ body.dm-org .dm-sos { display: none; }
 /* el cambio de 2D a 3D, bien a la vista: la demo empieza en el plano */
 body.dm #btn-2dq { background: #ffb23f; border-color: #ffb23f; color: #14161a; font-weight: 700; box-shadow: 0 0 0 4px rgba(255, 178, 63, .28), 0 6px 18px rgba(0, 0, 0, .45); }
 
-/* cambiar de recinto: la demo de Puerto Venecia es otra página (Noche-z/demo.html) */
-.dm-go { display: inline-flex; align-items: center; align-self: stretch; margin-left: 4px; padding: 0 14px 0 12px; border-left: 1px solid var(--line); color: #ffb23f; font-family: var(--f-display, inherit); font-size: 13.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; text-decoration: none; white-space: nowrap; }
-@media (max-width: 420px) { .dm-switch .dm-tag { display: none; } .dm-go { padding: 0 10px; font-size: 12px; } }
+/* el recinto: se ve el actual; al tocarlo sale el otro (la demo de Puerto Venecia es otra página) */
+.dm-place { position: relative; display: inline-flex; align-self: stretch; align-items: center; margin-left: 4px; padding-left: 4px; border-left: 1px solid var(--line); }
+.dm-switch .dm-place-b { color: #ffb23f; padding: 0 12px; }
+.dm-place-b i { margin-left: 6px; font-style: normal; font-size: 11px; }
+.dm-place-m { position: absolute; right: 0; bottom: calc(100% + 12px); min-width: 190px; padding: 6px; box-sizing: border-box; background: rgba(12, 14, 19, .97); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 10px 28px rgba(0, 0, 0, .55); }
+body.dm-org .dm-place-m { bottom: auto; top: calc(100% + 12px); }
+.dm-place-m a { display: block; padding: 11px 14px; border-radius: 10px; color: var(--bone); font-size: 13.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; text-decoration: none; white-space: nowrap; }
+.dm-place-m a:hover { background: rgba(255, 255, 255, .08); }
+@media (max-width: 420px) { .dm-switch .dm-tag { display: none; } }
 /* ================================================================ vista de organización de la demo (tools/org.js)
    El plano 2D a pantalla completa, arriba la hora y cuántos juegan, y abajo una sola barra para mover a la gente:
    a quién, adónde y enviar. Mismas letras y colores que la app. */
@@ -4070,10 +4076,15 @@ const ICON = {
 const ui = document.createElement('div');
 ui.innerHTML = `
 <div class="dm-switch" role="group" aria-label="Vista de la demo"><span class="dm-tag">DEMO</span>
-  <button type="button" data-v="player" aria-pressed="true">Jugador</button><button type="button" data-v="org" aria-pressed="false">Organización</button><a class="dm-go" href="calatayud/demo.html">Calatayud</a></div>
+  <button type="button" data-v="player" aria-pressed="true">Jugador</button><button type="button" data-v="org" aria-pressed="false">Organización</button><div class="dm-place"><button type="button" class="dm-place-b" aria-expanded="false" aria-haspopup="true">Puerto Venecia<i>▾</i></button><div class="dm-place-m" hidden><a href="calatayud/demo.html">Calatayud</a></div></div></div>
 <div class="dm-tip" hidden><span></span><button type="button" class="x" aria-label="Cerrar">×</button></div>`;
 $('#app').append(...ui.children);
 const tipEl = $('.dm-tip');
+// el recinto: se ve el actual y, al tocarlo, se puede elegir otro
+const plB = $('.dm-place-b'), plM = $('.dm-place-m');
+const plSet = (v) => { plM.hidden = !v; plB.setAttribute('aria-expanded', String(v)); };
+plB.addEventListener('click', (e) => { e.stopPropagation(); plSet(plM.hidden); });
+document.addEventListener('click', () => plSet(false));
 let tipOff = false;
 const tip = (html) => { tipEl.querySelector('span').innerHTML = html; tipOff = false; };
 tipEl.querySelector('.x').addEventListener('click', () => { tipOff = true; tipEl.hidden = true; });
@@ -5399,7 +5410,7 @@ function sosTick() {
 function setView(v) {
   view = v;
   document.body.classList.toggle('dm-org', v === 'org');
-  for (const b of document.querySelectorAll('.dm-switch button')) b.setAttribute('aria-pressed', String(b.dataset.v === v));
+  for (const b of document.querySelectorAll('.dm-switch button[data-v]')) b.setAttribute('aria-pressed', String(b.dataset.v === v));
   V.closeSheets(); V.clearCell();
   V.power.pocket = v === 'org'; V.duckAmbient(v === 'org');   // en organización el 3D se para: menos batería y sin ruido
   if (v === 'org') ORGV.enter();
@@ -5410,7 +5421,7 @@ function setView(v) {
   }
   crew.forEach(place);
 }
-for (const b of document.querySelectorAll('.dm-switch button')) b.addEventListener('click', () => setView(b.dataset.v));
+for (const b of document.querySelectorAll('.dm-switch button[data-v]')) b.addEventListener('click', () => setView(b.dataset.v));
 
 // ---------------------------------------------------------------- bucle
 let last = performance.now();
