@@ -2985,11 +2985,27 @@ const ROSTER = [
   { name: 'Íñigo', col: '#00e5ff' }, { name: 'Dani', col: '#ff9f1c' }, { name: 'Alejandro', col: '#c77dff' },
   { name: 'Migue', col: '#7bf1a8' }, { name: 'JM', col: '#ff4d9d' },
 ];
-const BROKERS = [
-  { name: 'shiftr', url: 'wss://public.cloud.shiftr.io', opts: { username: 'public', password: 'public' } },
+// Servidores propios (../sz-servidor, Clouding). La app se conecta a todos los de BROKERS a la vez y descarta lo repetido.
+// Solo ven ruido cifrado. La contraseña va en la web, así que es pública: solo aparta a los robots que barren brokers abiertos.
+// Con un solo servidor propio va además shiftr de reserva (gratis): si sz1 cae, todo sigue por ahí; es el único público
+// con entrada HTTP, la que usa la app con el móvil bloqueado. Con dos propios, solo ellos. Sin ninguno, los tres públicos de antes.
+// En local, ?srv=local apunta solo a sz-servidor/pruebas/local.js.
+const SZ_HOSTS = ['187.33.146.225'];   // sz1 (9-nov-2026)
+const SZ_USER = 'szt', SZ_PASS = '0L5q2qught5tmNRCesVw';
+const LOCAL_SRV = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && /[?&]srv=local\b/.test(location.search);
+const PUBLICOS = [
+  { name: 'shiftr', url: 'wss://public.cloud.shiftr.io', opts: { username: 'public', password: 'public' },
+    http: (t) => `https://public.cloud.shiftr.io/broker/${t}?retained=true`, auth: 'Basic ' + btoa('public:public') },
   { name: 'emqx', url: 'wss://broker.emqx.io:8084/mqtt', opts: {} },
   { name: 'hivemq', url: 'wss://broker.hivemq.com:8884/mqtt', opts: {} },
 ];
+const PROPIOS = (LOCAL_SRV ? [{ name: 'local', ws: 'ws://localhost:9001/mqtt', http: 'http://localhost:8080' }]
+  : SZ_HOSTS.map((h, i) => ({ name: 'sz' + (i + 1), ws: `wss://${h}/mqtt`, http: `https://${h}` })))
+  .map((s) => ({ name: s.name, url: s.ws, opts: { username: SZ_USER, password: SZ_PASS },
+    http: (t) => `${s.http}/broker/${t}?retained=true`, auth: 'Basic ' + btoa(`${SZ_USER}:${SZ_PASS}`) }));
+const BROKERS = LOCAL_SRV || PROPIOS.length > 1 ? PROPIOS : PROPIOS.length ? [...PROPIOS, PUBLICOS[0]] : PUBLICOS;
+// publicar por HTTP (solo desde la app): en todos los de BROKERS que tengan entrada HTTP
+const HTTP_PUB = BROKERS.filter((b) => b.http);
 const team = { on: false, code: null, key: null, topic: null, me: null, members: new Map(), clients: [], seen: [], seenSet: new Set(),
   follow: false, geoWatch: null, myPos: null, wake: null, muted: false, joinedAt: 0, meObj: null, meLabel: null, rx: 0, tx: 0 };
 const tenc = new TextEncoder(), tdec = new TextDecoder();
@@ -3081,14 +3097,14 @@ async function connectBrokers() {
   });
 }
 function publishAll(sub, data, opts) { let n = 0; for (const c of team.clients) if (c.connected) { c.publish(team.topic + sub, data, opts); n++; } return n; }
-// solo en la app: publicar (retenido) por HTTP nativo en shiftr, que lo reparte a los suscritos por MQTT.
+// solo en la app: publicar (retenido) por HTTP nativo en cada servidor (HTTP_PUB), que lo reparte a los suscritos por MQTT.
 // Con la app en segundo plano Android frena la red de la web y el WebSocket se duerme; esto no.
+// Las peticiones salen todas a la vez, antes del primer await: así salen aunque Android tenga la página congelada.
 async function httpPublish(sub, data) {
-  try {
-    const r = await nat('CapacitorHttp', 'request', { method: 'POST', url: `https://public.cloud.shiftr.io/broker/${team.topic}${sub}?retained=true`,
-      headers: { Authorization: 'Basic ' + btoa('public:public'), 'Content-Type': 'text/plain' }, data, connectTimeout: 8000, readTimeout: 8000 });
-    return r?.status === 200 ? 1 : 0;
-  } catch (e) { return 0; }
+  const reqs = HTTP_PUB.map((h) => nat('CapacitorHttp', 'request', { method: 'POST', url: h.http(team.topic + sub),
+    headers: { Authorization: h.auth, 'Content-Type': 'text/plain' }, data, connectTimeout: 8000, readTimeout: 8000 })
+    .then((r) => (r?.status === 200 ? 1 : 0), () => 0));
+  return (await Promise.all(reqs)).reduce((a, b) => a + b, 0);
 }
 function updateConnState() {
   const n = team.clients.filter((c) => c.connected).length;
