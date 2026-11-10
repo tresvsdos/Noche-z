@@ -249,6 +249,32 @@ body.in-team .hud { bottom: calc(var(--tab-h) + 108px); }
 .trow .danger { color: #ff8a80; }
 .team-art p { margin: 0 0 10px; font-size: 15px; line-height: 1.4; }
 .linkbtn { display: block; margin: 10px auto 0; padding: 6px; background: none; border: 0; color: var(--ash); font-size: 14px; text-decoration: underline; cursor: pointer; }
+/* entrada con QR o código de grupo */
+.scanbtn { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 0 0 12px; height: 54px; font-size: 17px; }
+.scanbtn svg { width: 24px; height: 24px; }
+.grp { margin: -4px 0 10px; padding: 8px 12px; border-radius: 12px; background: rgba(236,229,211,.07); font-size: 16px; font-weight: 700; }
+.grp.zo { color: #ff8a80; }
+.grp.bad { color: var(--ember); font-weight: 600; font-size: 14px; }
+#team-join .primary { margin-bottom: 10px; }
+.qrscan { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: #000; }
+.qrscan video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.qrframe { position: relative; width: min(68vw, 300px); aspect-ratio: 1; border: 3px solid rgba(255,255,255,.9); border-radius: 22px; box-shadow: 0 0 0 100vmax rgba(0,0,0,.45); }
+.qrscan p { position: absolute; left: 16px; right: 16px; top: calc(env(safe-area-inset-top) + 28px); margin: 0; text-align: center; font-size: 18px; font-weight: 700; color: #fff; text-shadow: 0 1px 6px #000; }
+.qrscan button { position: absolute; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 28px); transform: translateX(-50%); height: 48px; padding: 0 28px; background: rgba(12,13,16,.85); color: #fff; border: 1px solid var(--line); border-radius: 24px; font-size: 16px; font-weight: 700; cursor: pointer; }
+/* pantalla de control (solo ordenador) */
+.orgp { position: fixed; z-index: 30; top: 16px; left: 16px; bottom: 16px; width: 340px; display: flex; flex-direction: column; padding: 16px; background: rgba(12,13,16,.94); border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 20px 60px rgba(0,0,0,.6); }
+.orgp .team-head h2 { color: var(--bone); }
+.ogstats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 4px 0 10px; }
+.ogstats div { display: grid; padding: 8px 6px; border-radius: 12px; background: rgba(236,229,211,.06); text-align: center; }
+.ogstats b { font-size: 24px; font-variant-numeric: tabular-nums; }
+.ogstats span { font-size: 11.5px; color: var(--ash); letter-spacing: .04em; }
+.ogfilt { display: flex; gap: 6px; margin-bottom: 8px; }
+.ogfilt button { flex: 1; height: 36px; background: rgba(236,229,211,.06); border: 1px solid var(--line); border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; }
+.ogfilt button[aria-pressed="true"] { border-color: var(--ember); color: #fff; }
+#og-list { flex: 1; min-height: 0; overflow: auto; list-style: none; margin: 0 0 8px; padding: 0; display: grid; align-content: start; gap: 4px; }
+#og-list li.stale { opacity: .5; }
+#og-list li.empty { padding: 6px 2px; font-size: 14px; color: var(--ash); }
+body.org .tabbar, body.org #team, body.org #team-pill, body.org #btn-install { display: none !important; }
 .permline { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; margin-top: 6px; padding: 11px 12px; background: rgba(236,229,211,.05); border: 1px solid var(--line); border-radius: 12px; cursor: pointer; font-size: 13.5px; text-align: left; }
 .permline .go { color: var(--ember); font-weight: 700; text-transform: uppercase; letter-spacing: .05em; flex: none; }
 .perm { z-index: 17; }
@@ -480,11 +506,15 @@ body.plan2d.in-team .compass.vw { top: calc(env(safe-area-inset-top, 0px) + 200p
       <p>Abre la versión de equipo en el navegador (Chrome o Safari): <a id="team-url" href="#" target="_blank" rel="noopener"></a></p>
     </div>
     <form id="team-join" autocomplete="off">
-      <p class="who">¿Quién eres? Toca tu nombre para entrar</p>
-      <div class="roster" id="tj-roster" role="group" aria-label="Elige quién eres"></div>
-      <label class="f">Código de equipo <input type="text" id="tj-code" maxlength="120" placeholder="Vacío = crear equipo nuevo"></label>
-      <p class="fine" id="tj-fine">Tu ubicación solo la ve quien tenga el enlace del equipo, y solo mientras tengas esta página abierta. Todo viaja cifrado de extremo a extremo.</p>
+      <p class="who" id="tj-who">Entra con el QR de tu grupo</p>
+      <button type="button" class="primary scanbtn" id="tj-scan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M7 12h10"/></svg>Escanear QR</button>
+      <label class="f">o escribe el código <input type="text" id="tj-code" maxlength="120" placeholder="Ej.: G12-7KQ4P2XA" autocapitalize="characters" spellcheck="false"></label>
+      <p class="grp" id="tj-grp" hidden></p>
+      <label class="f">Tu nombre <input type="text" id="tj-name" maxlength="18" placeholder="Como te llama tu grupo" autocapitalize="words" spellcheck="false"></label>
+      <button type="submit" class="primary" id="tj-go">Entrar</button>
+      <p class="fine" id="tj-fine"></p>
       <p class="msg" id="tj-msg"></p>
+      <button type="button" class="linkbtn" id="tj-new">¿Vais por libre? Crear un equipo propio</button>
       <button type="button" class="linkbtn" id="tj-perm">¿Problemas con los permisos?</button>
     </form>
     <div id="team-live" hidden>
@@ -499,6 +529,34 @@ body.plan2d.in-team .compass.vw { top: calc(env(safe-area-inset-top, 0px) + 200p
       <button type="button" class="permline" id="tl-perm"><span id="tl-perm-txt">Permisos</span><span class="go">Revisar</span></button>
       <button type="button" class="linkbtn" id="tl-leave">Salir del equipo</button>
     </div>
+  </section>
+
+  <!-- lector de QR (cámara trasera) para entrar en un grupo o una horda -->
+  <div class="qrscan" id="qr-scan" hidden>
+    <video id="qr-video" playsinline muted></video>
+    <div class="qrframe" aria-hidden="true"></div>
+    <p id="qr-txt">Apunta al QR de tu grupo</p>
+    <button type="button" id="qr-close">Cancelar</button>
+  </div>
+
+  <!-- pantalla de control de la organización (#org=SECRETO): todos los grupos y hordas en directo, y la grabación -->
+  <section class="orgp" id="orgp" aria-label="Pantalla de control" hidden>
+    <div class="team-head"><h2>Pantalla de control · <span id="og-ev"></span></h2></div>
+    <p class="status" id="og-conn">Conectando con los servidores…</p>
+    <div class="ogstats">
+      <div><b id="og-pl">0</b><span>jugadores</span></div>
+      <div><b id="og-zo">0</b><span>zombis</span></div>
+      <div><b id="og-gr">0</b><span>grupos</span></div>
+      <div><b id="og-off">0</b><span>sin señal</span></div>
+    </div>
+    <div class="ogfilt" role="group" aria-label="Qué se ve en el mapa">
+      <button type="button" data-f="all" aria-pressed="true">Todos</button>
+      <button type="button" data-f="G" aria-pressed="false">Jugadores</button>
+      <button type="button" data-f="H" aria-pressed="false">Zombis</button>
+    </div>
+    <ul id="og-list"></ul>
+    <p class="status" id="og-rec">Grabando · 0 posiciones</p>
+    <div class="trow"><button type="button" id="og-dl">Descargar grabación</button><button type="button" id="og-alerts" aria-pressed="true">Avisos</button></div>
   </section>
 
   <section class="team perm sheet" id="perm" aria-label="Permisos" hidden>
@@ -2967,10 +3025,33 @@ const NATIVE = !!(CAP?.isNativePlatform?.() && CAP.nativePromise && CAP.nativeCa
 const ANDROID_APP = NATIVE && CAP.getPlatform() === 'android';
 const nat = (plugin, method, opts = {}) => CAP.nativePromise(plugin, method, opts);
 if (NATIVE) document.documentElement.classList.add('native');
+// solo para el vídeo y la demo simulada (tools/demo.js la rellena con su grupo inventado)
 const ROSTER = [
   { name: 'Íñigo', col: '#00e5ff' }, { name: 'Dani', col: '#ff9f1c' }, { name: 'Alejandro', col: '#c77dff' },
   { name: 'Migue', col: '#7bf1a8' }, { name: 'JM', col: '#ff4d9d' },
 ];
+// ---------- partida: grupos de jugadores y hordas de zombis con su QR
+// Cada grupo («Grupo 12») y cada horda («Horda 3») es un equipo con su código, que va impreso en su QR:
+//   G12-7KQ4P2XA → Grupo 12      H3-QX2M8KDW → Horda 3
+// Los códigos salen de un secreto de la organización (HMAC) que nunca va en la web: con él, la pantalla de control
+// (#org=SECRETO) los regenera todos y ve cada grupo y cada horda sin que los móviles manden nada de más.
+// Un grupo solo se ve a sí mismo; nadie ve a los zombis salvo su horda y la organización.
+const PARTIDA = { nombre: 'ZombieZone Calatayud', fin: Date.parse('2026-11-22T01:30:00+01:00') };   // a esa hora todos dejan de compartir
+const GCODE_RE = /([GH])\s*(\d{1,3})\s*[-–·.\s]?\s*([A-HJKMNP-Z2-9]{8})(?![A-Z0-9])/i;
+function parseGroupCode(s) {
+  const m = String(s || '').toUpperCase().match(GCODE_RE);
+  if (!m || +m[2] < 1) return null;
+  const role = m[1], n = +m[2];
+  return { code: `${role}${n}-${m[3]}`, role, n, g: `${role}${n}`, label: `${role === 'H' ? 'Horda' : 'Grupo'} ${n}` };
+}
+async function groupCode(secret, role, n) {
+  const k = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const mac = new Uint8Array(await crypto.subtle.sign('HMAC', k, new TextEncoder().encode(`sz-grupo/${role}${n}`)));
+  return `${role}${n}-` + Array.from(mac.subarray(0, 8), (b) => 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'[b % 31]).join('');
+}
+const partidaAcabada = () => Date.now() >= PARTIDA.fin;
+// cada móvil tiene su id (al azar, se guarda): con 200 personas los nombres se repiten
+const PALETTE = ['#00e5ff', '#ff9f1c', '#c77dff', '#7bf1a8', '#ff4d9d', '#ffd60a', '#4cc9f0', '#f4a261', '#90e0ef', '#e9ff70'];
 // Servidores propios (../sz-servidor, Clouding). La app se conecta a todos los de BROKERS a la vez y descarta lo repetido.
 // Solo ven ruido cifrado. La contraseña va en la web, así que es pública: solo aparta a los robots que barren brokers abiertos.
 // Con un solo servidor propio va además shiftr de reserva (gratis): si sz1 cae, todo sigue por ahí; es el único público
@@ -3023,16 +3104,21 @@ const cleanName = (s) => String(s || '').replace(/[\u0000-\u001f<>]/g, '').trim(
 const cleanCol = (c) => (/^#[0-9a-f]{6}$/i.test(c) ? c : '#ffffff');
 const INI = { 'Íñigo': 'IÑ', Dani: 'D', Alejandro: 'A', Migue: 'M', JM: 'JM' };
 const initials = (n) => { const t = String(n || '?').trim(); return INI[t] || (t.length <= 2 ? t.toUpperCase() : t[0].toUpperCase()); };
-async function nameId(n) { return 'm' + hexOf(await crypto.subtle.digest('SHA-256', tenc.encode('pvnz-member/' + n.toLowerCase()))).slice(0, 12); }
 function remember(k) { team.seenSet.add(k); team.seen.push(k); if (team.seen.length > 4000) team.seenSet.delete(team.seen.shift()); }
 
-async function deriveTeam(code) {
+async function teamKey(code) {
   const base = await crypto.subtle.importKey('raw', tenc.encode(code), 'PBKDF2', false, ['deriveKey']);
-  const key = await crypto.subtle.deriveKey({ name: 'PBKDF2', salt: tenc.encode('puerto-venecia-noche-z/v1'), iterations: 120000, hash: 'SHA-256' },
+  return crypto.subtle.deriveKey({ name: 'PBKDF2', salt: tenc.encode('puerto-venecia-noche-z/v1'), iterations: 120000, hash: 'SHA-256' },
     base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
-  const topic = 'pvnz/' + hexOf(await crypto.subtle.digest('SHA-256', tenc.encode('pvnz-topic/' + code))).slice(0, 32);
-  return { key, topic };
 }
+async function teamTopic(code) { return 'pvnz/' + hexOf(await crypto.subtle.digest('SHA-256', tenc.encode('pvnz-topic/' + code))).slice(0, 32); }
+async function deriveTeam(code) { return { key: await teamKey(code), topic: await teamTopic(code) }; }
+function myId() {
+  let id = store.get('sz-id');
+  if (!/^m[0-9a-f]{12}$/.test(id || '')) { id = 'm' + hexOf(crypto.getRandomValues(new Uint8Array(6))); store.set('sz-id', id); }
+  return id;
+}
+const colFor = (id) => PALETTE[parseInt(id.slice(1, 7), 16) % PALETTE.length];
 async function seal(obj) {
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, team.key, tenc.encode(JSON.stringify(obj))));
@@ -3056,9 +3142,9 @@ async function prepSyncSeal(code) {
     };
   } catch (e) { sealSync = null; }
 }
-async function unseal(str) {
+async function unseal(str, key = team.key) {
   const u8 = b64d(str);
-  const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: u8.subarray(0, 12) }, team.key, u8.subarray(12));
+  const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: u8.subarray(0, 12) }, key, u8.subarray(12));
   return JSON.parse(tdec.decode(pt));
 }
 
@@ -3115,6 +3201,23 @@ async function onTeamMessage(topic, payload) {
   else if (msg.k === 'x') removeMember(msg.id);
 }
 
+// ---------- batería (para las pruebas de duración de tools/battery): va en cada presencia; null si el móvil no la da.
+// En la app la lee el plugin Device (iPhone no la da a la web); en la web, la Battery API (Android sí, iPhone no).
+const batt = { level: null, chg: null, at: 0, bm: null };
+async function readBattery() {
+  try {
+    if (NATIVE) {
+      const r = await nat('Device', 'getBatteryInfo');
+      if (r && typeof r.batteryLevel === 'number' && r.batteryLevel >= 0) { batt.level = Math.round(r.batteryLevel * 100); batt.chg = r.isCharging ? 1 : 0; batt.at = Date.now(); return; }
+    }
+  } catch (e) { /* app sin el plugin Device */ }
+  try {
+    if (!batt.bm && navigator.getBattery) batt.bm = await navigator.getBattery();
+    if (batt.bm) { batt.level = Math.round(batt.bm.level * 100); batt.chg = batt.bm.charging ? 1 : 0; batt.at = Date.now(); }
+  } catch (e) { /* sin Battery API */ }
+}
+readBattery(); setInterval(readBattery, 60000);
+
 // ---------- posición propia
 let lastPub = 0, lastPubPos = null;
 async function publishPresence(force = false) {
@@ -3122,6 +3225,8 @@ async function publishPresence(force = false) {
   // En la app el GPS sigue vivo y se sigue mandando.
   const hidden = document.visibilityState === 'hidden';
   if (!team.on || !team.key || (hidden && !NATIVE)) return;
+  // fin de la partida: los grupos y las hordas dejan de compartir solos (también con el móvil bloqueado: aquí entra cada posición)
+  if (team.grp && partidaAcabada()) { endOfGame(); return; }
   const now = Date.now(), p = team.myPos;
   const gap = hidden ? 5000 : 1500, beat = hidden ? 30000 : 10000;   // bloqueado, cada envío es una petición HTTP: más espaciados
   if (!force && now - lastPub < gap) return;
@@ -3131,6 +3236,10 @@ async function publishPresence(force = false) {
   const msg = { k: 'p', id: team.me.id, name: team.me.name, col: team.me.col, ts: now,
     lat: p ? +p.lat.toFixed(6) : null, lon: p ? +p.lon.toFixed(6) : null, acc: p ? Math.round(p.acc) : null };
   if (NATIVE) msg.nb = 1;
+  if (team.grp) msg.g = team.grp.g;
+  msg.hid = hidden ? 1 : 0;
+  if (batt.level != null) { msg.bat = batt.level; msg.chg = batt.chg; msg.bta = Math.round((now - batt.at) / 1000); }   // bta: segundos desde la lectura
+  if (!hidden) readBattery();
   // app oculta: todo síncrono hasta el puente nativo (la petición sale aunque Android tenga la página congelada)
   if (NATIVE && hidden && sealSync) { httpPublish('/p/' + team.me.id, sealSync(msg)); team.tx++; return; }
   const sealed = await seal(msg);
@@ -3312,7 +3421,7 @@ const accMat = (hex) => new THREE.ShaderMaterial({
   vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
   fragmentShader: 'uniform vec3 uCol; varying vec2 vUv; void main(){ float d = length(vUv - 0.5) * 2.0; float a = (0.09 + 0.55 * smoothstep(0.9, 1.0, d)) * step(d, 1.0); gl_FragColor = vec4(uCol * a, 1.0); }',
 });
-function makeAvatar(col, name, isMe) {
+function makeAvatar(col, name, isMe, short) {
   const g = new THREE.Group();
   const body = new THREE.Mesh(new THREE.CapsuleGeometry(1.4, 2.2, 6, 16).translate(0, 2.9, 0), pinMat(col));
   const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 1.3, 170, 12, 1, true).translate(0, 85, 0), beamMat(col)); beam.renderOrder = 14;
@@ -3325,7 +3434,7 @@ function makeAvatar(col, name, isMe) {
   el.className = 'tag member' + (isMe ? ' me' : ''); el.type = 'button';
   el.style.setProperty('--c', col);
   el.innerHTML = '<span class="ini"></span><span class="cell" hidden></span><span class="age" hidden></span>';
-  el.querySelector('.ini').textContent = initials(name);
+  el.querySelector('.ini').textContent = short || initials(name);
   el.setAttribute('aria-label', isMe ? `${name} (tú)` : name);
   const pos = new THREE.Vector3();
   const L = { el, pos, kind: 'member', always: true, hide: true };
@@ -3339,9 +3448,9 @@ function placeEntry(m, isMe) {
   // el GPS da lecturas cada segundo aunque estés quieto: solo se redibuja si alguien se mueve de verdad
   const fresh = !m.av, wasIn = m.inside, moved = fresh || Math.hypot(x - m.tx, z - m.tz) > 1;
   m.inside = inWide(x, z); m.tx = x; m.tz = z;
-  if (!m.av) { m.av = makeAvatar(m.col, m.name, isMe); m.x = x; m.z = z; m.av.L.el.addEventListener('click', () => flyTo(new THREE.Vector3(m.x, 0, m.z), 160, 52)); }
+  if (!m.av) { m.av = makeAvatar(m.col, m.name, isMe, m.short); m.x = x; m.z = z; m.av.L.el.addEventListener('click', () => flyTo(new THREE.Vector3(m.x, 0, m.z), 160, 52)); }
   if (power.saver) { m.x = x; m.z = z; }   // con ahorro, sin animación: salta al sitio y basta un fotograma
-  m.av.g.visible = m.inside; m.av.L.hide = !m.inside;
+  m.av.g.visible = m.inside && !m.off; m.av.L.hide = !m.inside || !!m.off;   // off: escondido por el filtro de la pantalla de control
   m.av.g.userData.acc.scale.set(Math.min(m.acc || 10, 80), 1, Math.min(m.acc || 10, 80));
   const c = m.inside ? cellName(...worldToGrid(x, z)) : null;
   m.av.L.el.querySelector('.cell').textContent = c || '—';
@@ -3435,15 +3544,15 @@ function renderTeamList() {
   const now = Date.now(); ul.textContent = '';
   const meCell = team.meEntry?.inside ? cellName(...worldToGrid(team.meEntry.tx, team.meEntry.tz)) : null;
   teamRow(ul, `${team.me.name} (tú)`, team.me.col, team.myPos ? (meCell ? `Celda ${meCell}` : 'Fuera del mapa') : 'Sin ubicación todavía', false, centerOnMe);
-  const all = [...team.members.values()], shown = new Set();
-  for (const r of ROSTER) {
-    if (r.name === team.me.name) continue;
-    const m = all.find((x) => x.name === r.name);
-    if (!m) { teamRow(ul, r.name, r.col, 'Aún no se ha conectado', true); continue; }
-    shown.add(m.id);
-    teamRow(ul, r.name, r.col, memberInfo(m, now), isStale(m, now), () => { if (m.inside) { flyTo(new THREE.Vector3(m.x, 0, m.z), 160, 52); team.follow = false; syncFollow(); } });
+  const all = [...team.members.values()].sort((a, b) => isStale(a, now) - isStale(b, now) || a.name.localeCompare(b.name, 'es'));
+  for (const m of all) {
+    teamRow(ul, m.name, m.col, memberInfo(m, now), isStale(m, now), () => { if (m.inside) { flyTo(new THREE.Vector3(m.x, 0, m.z), 160, 52); team.follow = false; syncFollow(); } });
   }
-  for (const m of all) if (!shown.has(m.id)) teamRow(ul, m.name, m.col, memberInfo(m, now), isStale(m, now), () => m.inside && flyTo(new THREE.Vector3(m.x, 0, m.z), 160, 52));
+  if (!all.length) {
+    const li = document.createElement('li'); li.className = 'empty';
+    li.textContent = team.grp ? `Aún no hay nadie más de tu ${team.grp.role === 'H' ? 'horda' : 'grupo'}. Que escaneen el mismo QR.` : 'Aún no hay nadie más. Toca «Invitar» y pásales el enlace.';
+    ul.appendChild(li);
+  }
 }
 setInterval(renderTeamList, 2000);
 // cabecera: cuántos del equipo están ahora mismo en el mapa
@@ -3451,7 +3560,7 @@ function updatePill() {
   const el = $('#team-pill'); el.hidden = !team.on; if (!team.on) return;
   const now = Date.now(); let on = team.meEntry?.inside ? 1 : 0;
   for (const m of team.members.values()) if (m.inside && !isStale(m, now)) on++;
-  el.querySelector('span').textContent = `${on}/${ROSTER.length} en el mapa`;
+  el.querySelector('span').textContent = team.grp ? `${team.grp.label} · ${on} en el mapa` : `${on} en el mapa`;
   el.classList.toggle('warn', !team.clients.some((c) => c.connected));
 }
 setInterval(updatePill, 2000);
@@ -3476,7 +3585,6 @@ if (NATIVE) {
   // en la app no hace falta la pantalla negra: se puede bloquear el móvil y el equipo te sigue viendo
   $('#tl-pocket').closest('.trow').style.display = 'none';
   $('#tl-pocket-txt').textContent = 'Puedes bloquear el móvil o cambiar de app: el equipo te sigue viendo. Si cierras la app deslizándola o sales del equipo, se deja de compartir.';
-  $('#tj-fine').textContent = 'Tu ubicación solo la ve quien tenga el código del equipo, también con el móvil bloqueado mientras sigas dentro. Puedes pegar aquí el enlace entero. Todo viaja cifrado de extremo a extremo.';
 }
 {
   const hold = $('#pocket-hold'); let t0 = 0, raf = 0;
@@ -3495,36 +3603,117 @@ function setMuted(v) { team.muted = v; muteBtn.setAttribute('aria-pressed', Stri
 muteBtn.addEventListener('click', () => { setMuted(!team.muted); toast(team.muted ? 'Walkie silenciado: verás quién habla, sin sonido' : 'Walkie con sonido'); if (!team.muted) unlockAudio(); });
 setMuted(store.get('pv-mute') === '1');
 $('#tl-share').addEventListener('click', async () => {
-  const url = `${location.origin}${location.pathname}#equipo=${team.code}`;
-  const text = 'Únete a mi equipo en el mapa del Survival Zombie';
+  // en la app, location es capacitor://localhost: el enlace tiene que ser el de la web (window.SZ_WEB lo pone el empaquetador)
+  const url = `${window.SZ_WEB || location.origin + location.pathname}#${team.grp ? 'entrar' : 'equipo'}=${team.code}`;
+  const text = team.grp ? `Entra en ${team.grp.label} en el mapa de la partida` : 'Únete a mi equipo en el mapa del Survival Zombie';
   if (navigator.share) { try { await navigator.share({ title: 'Survival Zombie · Mapa', text, url }); return; } catch (e) { if (e.name === 'AbortError') return; } }
-  try { await navigator.clipboard.writeText(url); toast('Enlace del equipo copiado'); } catch (e) { const inp = $('#tl-url'); inp.hidden = false; inp.value = url; inp.select(); toast('Copia el enlace del recuadro'); }
+  try { await navigator.clipboard.writeText(url); toast('Enlace copiado'); } catch (e) { const inp = $('#tl-url'); inp.hidden = false; inp.value = url; inp.select(); toast('Copia el enlace del recuadro'); }
 });
 $('#tl-leave').addEventListener('click', leaveTeam);
-// ¿quién eres? (equipo fijo de 5)
-const rosterEl = $('#tj-roster');
-ROSTER.forEach((r) => {
-  const b = document.createElement('button'); b.type = 'button'; b.className = 'rbtn';
-  b.innerHTML = '<i></i><span></span>'; b.querySelector('i').style.background = r.col; b.querySelector('span').textContent = r.name;
-  if (store.get('pv-name') === r.name) b.classList.add('last');
-  b.addEventListener('click', () => pickRoster(r));
-  rosterEl.appendChild(b);
-});
-async function pickRoster(r) {
-  unlockAudio(); requestWake(); primeGeo();
-  const typed = $('#tj-code').value;
-  let code = ((typed.match(/equipo=([A-Z0-9]{6,16})/i) || [])[1] || typed).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 16);
-  if (code && code.length < 6) { $('#tj-msg').textContent = 'El código de equipo tiene al menos 6 caracteres. Déjalo vacío para crear uno nuevo.'; return; }
-  if (!code) code = newCode();
-  const btns = rosterEl.querySelectorAll('button'); btns.forEach((x) => { x.disabled = true; });
-  $('#tj-msg').textContent = `Entrando como ${r.name}…`;
-  try { await joinTeam(r.name, r.col, code, true); $('#tj-msg').textContent = ''; }
-  catch (err) { $('#tj-msg').textContent = 'No se pudo conectar. Revisa la conexión a internet e inténtalo de nuevo.'; team.on = false; }
-  btns.forEach((x) => { x.disabled = false; x.classList.toggle('last', x.textContent === r.name); });
+// ---------- entrar: QR o código del grupo (o de la horda) + nombre. Sin código de grupo, un equipo propio con amigos.
+const codeIn = $('#tj-code'), nameIn = $('#tj-name');
+nameIn.value = store.get('pv-name') || '';
+const plainCode = (raw) => { const c = ((String(raw).match(/equipo=([A-Z0-9]{6,16})/i) || [])[1] || String(raw)).toUpperCase().replace(/[^A-Z0-9]/g, ''); return c.length >= 6 && c.length <= 16 ? c : null; };
+function fineFor(g) {
+  const fin = new Date(PARTIDA.fin).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' });
+  if (g) return `Tu ubicación la ven ${g.role === 'H' ? 'tu horda' : 'tu grupo'} y la organización de la partida, y solo hasta que acabe: a las ${fin} se deja de compartir sola. Viaja cifrada y no se usa para nada más.${NATIVE ? ' Puedes bloquear el móvil: se sigue viendo.' : ' Mantén esta página abierta.'}`;
+  return NATIVE ? 'Tu ubicación solo la ve quien tenga el código del equipo, también con el móvil bloqueado mientras sigas dentro. Todo viaja cifrado de extremo a extremo.'
+    : 'Tu ubicación solo la ve quien tenga el enlace del equipo, y solo mientras tengas esta página abierta. Todo viaja cifrado de extremo a extremo.';
 }
+function syncJoin() {
+  const raw = codeIn.value.trim(), g = parseGroupCode(raw), el = $('#tj-grp');
+  if (g) { el.hidden = false; el.className = 'grp' + (g.role === 'H' ? ' zo' : ''); el.textContent = g.role === 'H' ? `${g.label} · zombis` : g.label; }
+  else if (raw && !plainCode(raw)) { el.hidden = false; el.className = 'grp bad'; el.textContent = 'Ese código no es válido: revisa el QR o escríbelo como en la tarjeta.'; }
+  else el.hidden = true;
+  $('#tj-fine').textContent = fineFor(g);
+  $('#tj-msg').textContent = '';
+}
+codeIn.addEventListener('input', syncJoin);
+syncJoin();
+$('#team-join').addEventListener('submit', (e) => { e.preventDefault(); enterTeam(false); });
+$('#tj-new').addEventListener('click', () => { codeIn.value = ''; syncJoin(); enterTeam(true); });
+async function enterTeam(newTeam) {
+  unlockAudio(); requestWake(); primeGeo();
+  const raw = codeIn.value.trim(), g = newTeam ? null : parseGroupCode(raw), msgEl = $('#tj-msg');
+  const code = newTeam ? newCode() : g ? g.code : plainCode(raw);
+  if (!code) { msgEl.textContent = raw ? 'Ese código no es válido: revisa el QR o escríbelo como en la tarjeta.' : 'Escanea el QR de tu grupo o escribe su código.'; return; }
+  if (g && partidaAcabada()) { msgEl.textContent = 'La partida ya ha terminado: el mapa ya no comparte ubicaciones.'; return; }
+  let name = nameIn.value.replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 18);
+  if (!name && g) name = g.role === 'H' ? 'Zombi' : 'Jugador';
+  if (!name) { msgEl.textContent = 'Escribe tu nombre para que tu equipo sepa quién eres.'; nameIn.focus(); return; }
+  $('#tj-go').disabled = true; msgEl.textContent = g ? `Entrando en ${g.label}…` : 'Entrando…';
+  try { await joinTeam(name, null, code, true); msgEl.textContent = ''; }
+  catch (err) { msgEl.textContent = 'No se pudo conectar. Revisa la conexión a internet e inténtalo de nuevo.'; team.on = false; }
+  $('#tj-go').disabled = false;
+}
+// al acabar la partida, todos los grupos y hordas dejan de compartir (aunque nadie toque nada)
+async function endOfGame() {
+  if (!team.on || !team.grp) return;
+  await leaveTeam();
+  $('#tj-msg').textContent = 'La partida ha terminado: ya no compartes tu ubicación.';
+  toast('La partida ha terminado: ya no compartes tu ubicación. ¡Gracias por jugar!', '#ff8a80');
+}
+setInterval(() => { if (team.on && team.grp && partidaAcabada()) endOfGame(); }, 30000);
+// ---------- lector de QR: BarcodeDetector donde lo hay (Android) y jsQR en el resto (iPhone)
+let qrStream = null, qrRaf = 0;
+async function loadJsQR() {
+  if (window.jsQR) return window.jsQR;
+  await new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js'; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
+  return window.jsQR;
+}
+function stopScan() {
+  cancelAnimationFrame(qrRaf); qrRaf = 0;
+  qrStream?.getTracks().forEach((t) => t.stop()); qrStream = null;
+  $('#qr-video').srcObject = null; $('#qr-scan').hidden = true;
+}
+async function scanQR() {
+  const video = $('#qr-video'), msgEl = $('#tj-msg');
+  msgEl.textContent = '';
+  if (!navigator.mediaDevices?.getUserMedia) { msgEl.textContent = 'Aquí no se puede usar la cámara: escribe el código de la tarjeta.'; return; }
+  let detector = null, jsQR = null;
+  try { if ('BarcodeDetector' in window && (await BarcodeDetector.getSupportedFormats()).includes('qr_code')) detector = new BarcodeDetector({ formats: ['qr_code'] }); } catch (e) { detector = null; }
+  if (!detector) { try { jsQR = await loadJsQR(); } catch (e) { msgEl.textContent = 'No se pudo cargar el lector de QR: escribe el código de la tarjeta.'; return; } }
+  try { qrStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false }); }
+  catch (e) { msgEl.textContent = e.name === 'NotAllowedError' ? 'Sin permiso para la cámara: permítela en los ajustes o escribe el código de la tarjeta.' : 'No se pudo abrir la cámara: escribe el código de la tarjeta.'; return; }
+  $('#qr-scan').hidden = false; $('#qr-txt').textContent = 'Apunta al QR de tu grupo';
+  video.srcObject = qrStream;
+  try { await video.play(); } catch (e) { /* se reintenta en cada fotograma */ }
+  const cv = document.createElement('canvas'), cx = cv.getContext('2d', { willReadFrequently: true });
+  let busy = false, last = 0;
+  const tick = async (ts) => {
+    if (!qrStream) return;
+    qrRaf = requestAnimationFrame(tick);
+    if (busy || ts - last < 140 || video.readyState < 2 || !video.videoWidth) return;
+    busy = true; last = ts;
+    try {
+      let text = null;
+      if (detector) { const r = await detector.detect(video); text = r[0]?.rawValue || null; }
+      else {
+        const w = 480, h = Math.round(w * video.videoHeight / video.videoWidth);
+        cv.width = w; cv.height = h; cx.drawImage(video, 0, 0, w, h);
+        text = jsQR(cx.getImageData(0, 0, w, h).data, w, h, { inversionAttempts: 'dontInvert' })?.data || null;
+      }
+      if (text) {
+        const g = parseGroupCode(text);
+        if (g) {
+          stopScan(); codeIn.value = g.code; syncJoin();
+          try { navigator.vibrate?.(60); } catch (e) { /* opcional */ }
+          msgEl.textContent = `${g.label}: comprueba tu nombre y toca Entrar.`;
+          if (!nameIn.value.trim()) nameIn.focus();
+        } else $('#qr-txt').textContent = 'Ese QR no es de la partida';
+      }
+    } catch (e) { /* siguiente fotograma */ }
+    busy = false;
+  };
+  qrRaf = requestAnimationFrame(tick);
+}
+$('#tj-scan').addEventListener('click', scanQR);
+$('#qr-close').addEventListener('click', stopScan);
 async function joinTeam(name, col, code, gesture) {
-  team.me = { id: await nameId(name), name, col }; team.code = code;
-  store.set('pv-name', name); store.set('pv-col', col); store.set('pv-team', code);
+  const id = myId();
+  team.grp = parseGroupCode(code);   // null en un equipo propio
+  team.me = { id, name, col: col || colFor(id) }; team.code = code;
+  store.set('pv-name', name); store.set('pv-team', code);
   if (gesture) unlockAudio();
   requestWake();
   const { key, topic } = await deriveTeam(code);
@@ -3532,7 +3721,9 @@ async function joinTeam(name, col, code, gesture) {
   if (NATIVE) prepSyncSeal(code);
   history.replaceState(null, '', '#equipo=' + code);
   $('#team-join').hidden = true; $('#team-live').hidden = false;
-  $('#tl-code').textContent = code.replace(/(.{5})(.+)/, '$1·$2');
+  $('#tj-title').textContent = team.grp ? (team.grp.role === 'H' ? `${team.grp.label} · zombis` : team.grp.label) : 'Equipo en directo';
+  $('#tl-code').textContent = team.grp ? code : code.replace(/(.{5})(.+)/, '$1·$2');
+  $('#tl-share').textContent = team.grp ? 'Compartir' : 'Invitar';
   $('#radio').hidden = false; $('#btn-me').hidden = false; document.body.classList.add('in-team'); updatePill();
   if (target.visible) setActs(true);
   updateConnState();
@@ -3555,6 +3746,7 @@ async function leaveTeam() {
   $('#team-join').hidden = false; $('#team-live').hidden = true; $('#radio').hidden = true; setActs(false);
   document.body.classList.remove('in-team'); teamBtn.classList.remove('live'); $('#btn-me').hidden = true; updatePill();
   $('#tj-code').value = ''; $('#tj-msg').textContent = '';
+  team.grp = null; $('#tj-title').textContent = 'Equipo en directo'; syncJoin();
 }
 
 // ---------- walkie-talkie (PCM μ-law 8 kHz en fragmentos de 0,5 s: suena igual en Android, iPhone y ordenador)
@@ -3894,6 +4086,154 @@ function toast(text, col, onClick) {
   setTimeout(() => el.remove(), onClick ? 9000 : 4500);
 }
 
+// ================================================================ PANTALLA DE CONTROL (organización, solo ordenador)
+// Se abre con #org=SECRETO[&g=120&h=30]: regenera los códigos de los grupos (G1…Gg) y las hordas (H1…Hh), se suscribe a sus
+// posiciones y avisos, enseña a todos en el mapa y lo graba todo en este ordenador (IndexedDB) para el mapa de la noche.
+// Los móviles no mandan nada de más: la organización lee lo que cada grupo ya manda a su equipo.
+const ORG_SECRET = MODE === 'standalone' ? ((location.hash.match(/[#&]org=([A-Za-z0-9_-]{16,80})/) || [])[1] || null) : null;
+const org = { on: false, ents: new Map(), clients: [], filter: 'all', alerts: true, rec: 0, db: null, buf: [] };
+function hslHex(h, s, l) {
+  s /= 100; l /= 100;
+  const f = (n) => { const k = (n + h / 30) % 12, c = l - s * Math.min(l, 1 - l) * Math.max(-1, Math.min(k - 3, 9 - k, 1)); return Math.round(c * 255).toString(16).padStart(2, '0'); };
+  return `#${f(0)}${f(8)}${f(4)}`;
+}
+const grpCol = (n) => hslHex(35 + ((n * 137.508) % 290), 85, 62);   // sin rojos: el rojo es de los zombis
+async function startOrg() {
+  org.on = true; document.body.classList.add('org');
+  $('#orgp').hidden = false; $('#og-ev').textContent = PARTIDA.nombre;
+  const q = new URLSearchParams(location.hash.slice(1));
+  const NG = Math.min(400, +q.get('g') || 120), NH = Math.min(100, +q.get('h') || 30);
+  $('#og-conn').textContent = 'Preparando los códigos de los grupos…';
+  for (const [role, N] of [['H', NH], ['G', NG]]) {
+    for (let n = 1; n <= N; n++) {
+      const code = await groupCode(ORG_SECRET, role, n);
+      org.ents.set(await teamTopic(code), { code, role, n, g: `${role}${n}`, label: `${role === 'H' ? 'Horda' : 'Grupo'} ${n}`, key: null, col: role === 'H' ? '#ff3b30' : grpCol(n) });
+    }
+  }
+  await openRec();
+  const lib = await loadMqtt();
+  org.clients = BROKERS.map((b) => {
+    const c = lib.connect(b.url, { ...b.opts, clientId: `szorg_${Math.random().toString(36).slice(2, 10)}`, clean: true, keepalive: 30, reconnectPeriod: 4000, connectTimeout: 12000, protocolVersion: 4 });
+    c.on('connect', () => { c.subscribe(['pvnz/+/p/+', 'pvnz/+/k'], { qos: 0 }); orgConn(); });
+    ['close', 'offline', 'reconnect'].forEach((ev) => c.on(ev, orgConn));
+    c.on('error', () => { /* el cliente reintenta solo */ });
+    c.on('message', (tp, payload) => onOrgMessage(tp, payload));
+    return c;
+  });
+  orgConn(); renderOrg();
+  setInterval(renderOrg, 2000); setInterval(flushRec, 3000);
+  window.addEventListener('beforeunload', flushRec);
+}
+function orgConn() {
+  const n = org.clients.filter((c) => c.connected).length, el = $('#og-conn');
+  el.textContent = n ? `Conectado · ${n}/${BROKERS.length} servidores · ${org.ents.size} códigos` : 'Conectando con los servidores…';
+  el.classList.toggle('warn', !n);
+}
+async function onOrgMessage(topic, payload) {
+  const p = topic.split('/'), ent = org.ents.get(`${p[0]}/${p[1]}`);
+  if (!ent) return;   // un equipo propio (amigos): no es de la partida y no se puede leer
+  const raw = payload ? payload.toString() : '';
+  if (!raw) { if (p[2] === 'p' && /^m[0-9a-f]{12}$/.test(p[3] || '')) removeMember(p[3]); return; }
+  if (!ent.key) ent.key = teamKey(ent.code);   // PBKDF2 es lento: solo de los grupos que mandan algo, una vez
+  let msg;
+  try { msg = await unseal(raw, await ent.key); } catch (e) { return; }
+  if (!msg || typeof msg !== 'object' || !/^m[0-9a-f]{12}$/.test(msg.id || '')) return;
+  if (msg.k === 'p') onOrgPresence(ent, msg);
+  else if (msg.k === 'k' && org.alerts) {
+    const k = 'k' + msg.pid; if (team.seenSet.has(k)) return; remember(k);
+    onPing({ ...msg, name: `${ent.label} · ${cleanName(msg.name)}`, col: ent.col });
+  }
+}
+function onOrgPresence(ent, msg) {
+  let m = team.members.get(msg.id);
+  if (m && msg.ts <= m.ts) return;
+  if (!m) { m = { id: msg.id }; team.members.set(msg.id, m); }
+  const name = cleanName(msg.name);
+  if (m.av && (m.name !== name || m.ent !== ent)) { dropAvatar(m.av); m.av = null; }
+  Object.assign(m, { ent, name, col: ent.col, short: ent.g, off: org.filter !== 'all' && ent.role !== org.filter,
+    ts: Math.min(+msg.ts || Date.now(), Date.now()), bg: msg.bg === 1, nb: msg.nb === 1,
+    lat: Number.isFinite(msg.lat) ? msg.lat : null, lon: Number.isFinite(msg.lon) ? msg.lon : null, acc: Number.isFinite(msg.acc) ? msg.acc : null,
+    bat: Number.isFinite(msg.bat) ? msg.bat : null, chg: msg.chg === 1 });
+  placeEntry(m, false);
+  org.buf.push({ t: m.ts, r: Date.now(), g: ent.g, id: msg.id, n: name, lat: m.lat, lon: m.lon, acc: m.acc, bat: m.bat, chg: msg.chg ?? null, hid: msg.hid ?? null, nb: msg.nb ?? null, bg: msg.bg ?? null });
+}
+// ---------- grabación (este ordenador): una fila por posición recibida
+function openRec() {
+  return new Promise((res) => {
+    try {
+      const rq = indexedDB.open('sz-grabacion', 1);
+      rq.onupgradeneeded = () => rq.result.createObjectStore('p', { autoIncrement: true });
+      rq.onsuccess = () => {
+        org.db = rq.result;
+        const c = org.db.transaction('p').objectStore('p').count();
+        c.onsuccess = () => { org.rec = c.result; res(); }; c.onerror = () => res();
+      };
+      rq.onerror = () => res();
+    } catch (e) { res(); }
+  });
+}
+function flushRec() {
+  if (!org.db || !org.buf.length) return;
+  const rows = org.buf.splice(0);
+  try {
+    const tx = org.db.transaction('p', 'readwrite'), st = tx.objectStore('p');
+    rows.forEach((r) => st.add(r));
+    tx.oncomplete = () => { org.rec += rows.length; };
+    tx.onerror = () => { org.buf.unshift(...rows); };
+  } catch (e) { org.buf.unshift(...rows); }
+}
+async function downloadRec() {
+  flushRec();
+  if (!org.db) { toast('Este navegador no deja guardar la grabación'); return; }
+  const rows = await new Promise((res) => { const rq = org.db.transaction('p').objectStore('p').getAll(); rq.onsuccess = () => res(rq.result || []); rq.onerror = () => res([]); });
+  const blob = new Blob([rows.map((r) => JSON.stringify(r)).join('\n') + '\n'], { type: 'application/x-ndjson' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `grabacion-${PARTIDA.nombre.toLowerCase().replace(/\s+/g, '-')}-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, '')}.ndjson`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  toast(`Grabación descargada: ${rows.length.toLocaleString('es-ES')} posiciones`);
+}
+// ---------- panel: cuántos hay, y una fila por grupo y por horda
+function renderOrg() {
+  const now = Date.now(), groups = new Map();
+  let pl = 0, zo = 0, off = 0;
+  for (const m of team.members.values()) {
+    if (!m.ent) continue;
+    const st = isStale(m, now);
+    if (st) off++; else if (m.ent.role === 'H') zo++; else pl++;
+    if (!groups.has(m.ent.g)) groups.set(m.ent.g, { ent: m.ent, ms: [] });
+    groups.get(m.ent.g).ms.push(m);
+  }
+  $('#og-pl').textContent = pl; $('#og-zo').textContent = zo; $('#og-off').textContent = off;
+  $('#og-gr').textContent = [...groups.values()].filter((x) => x.ent.role === 'G' && x.ms.some((m) => !isStale(m, now))).length;
+  $('#og-rec').textContent = `Grabando en este ordenador · ${(org.rec + org.buf.length).toLocaleString('es-ES')} posiciones`;
+  const ul = $('#og-list'); ul.textContent = '';
+  const list = [...groups.values()].filter((x) => org.filter === 'all' || x.ent.role === org.filter)
+    .sort((a, b) => (a.ent.role === b.ent.role ? a.ent.n - b.ent.n : a.ent.role === 'H' ? -1 : 1));
+  for (const { ent, ms } of list) {
+    const live = ms.filter((m) => !isStale(m, now)), ref = live.find((m) => m.inside) || ms.find((m) => m.inside);
+    const last = Math.max(...ms.map((m) => m.ts));
+    const bats = ms.map((m) => m.bat).filter((b) => b != null);
+    const parts = [`${live.length}/${ms.length} con señal`];
+    const cell = ref ? cellName(...worldToGrid(ref.tx, ref.tz)) : null;
+    if (cell) parts.push(`Celda ${cell}`); else if (ref) parts.push('fuera de la cuadrícula');
+    parts.push(ago(now - last));
+    if (bats.length) parts.push(`batería ${Math.min(...bats)} %`);
+    teamRow(ul, `${ent.label} · ${ms.map((m) => m.name).join(', ')}`, ent.col, parts.join(' · '), !live.length,
+      () => { if (ref) flyTo(new THREE.Vector3(ref.x, 0, ref.z), 200, 60); });
+  }
+  if (!list.length) { const li = document.createElement('li'); li.className = 'empty'; li.textContent = 'Aún no ha entrado nadie. En cuanto un grupo escanee su QR, aparece aquí.'; ul.appendChild(li); }
+}
+document.querySelectorAll('.ogfilt button').forEach((b) => b.addEventListener('click', () => {
+  org.filter = b.dataset.f;
+  document.querySelectorAll('.ogfilt button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+  for (const m of team.members.values()) if (m.ent) { m.off = org.filter !== 'all' && m.ent.role !== org.filter; placeEntry(m, false); }
+  kick(600); renderOrg();
+}));
+$('#og-dl').addEventListener('click', downloadRec);
+$('#og-alerts').addEventListener('click', (e) => { org.alerts = !org.alerts; e.currentTarget.setAttribute('aria-pressed', String(org.alerts)); toast(org.alerts ? 'Avisos de los grupos activados' : 'Avisos de los grupos ocultos'); });
+
 // ---------- arranque según dónde se abre la página
 if (MODE === 'artifact') {
   $('#team-join').hidden = true; $('#team-live').hidden = true; $('#team-artifact').hidden = false;
@@ -3901,15 +4241,20 @@ if (MODE === 'artifact') {
   if (/^https:\/\//.test(TEAM_URL)) { a.href = TEAM_URL; a.textContent = TEAM_URL.replace(/^https:\/\//, ''); } else { a.closest('p').hidden = true; }
 } else if (MODE === 'video' || MODE === 'demo') {
   // el vídeo y la demo se inventan el equipo en local: no se entra en ningún equipo guardado ni se conecta a nada
+} else if (ORG_SECRET) {
+  startOrg();
 } else {
-  const hashCode = (location.hash.match(/equipo=([A-Z0-9]{6,16})/i) || [])[1]?.toUpperCase();
+  // #entrar=G12-… (el QR abierto con la cámara del móvil) o #equipo=… (enlace de un equipo o vuelta a la página)
+  const hashCode = (location.hash.match(/(?:equipo|entrar)=([A-Z0-9-]{6,20})/i) || [])[1]?.toUpperCase();
   const saved = store.get('pv-team'), savedName = store.get('pv-name');
-  const savedR = ROSTER.find((r) => r.name === savedName);
-  if (saved && savedR && (!hashCode || hashCode === saved)) {
-    joinTeam(savedR.name, savedR.col, saved, false).catch(() => { /* reintenta el cliente */ });
+  const savedOk = saved && savedName && !(parseGroupCode(saved) && partidaAcabada());
+  if (savedOk && (!hashCode || hashCode === saved)) {
+    joinTeam(savedName, null, saved, false).catch(() => { /* reintenta el cliente */ });
   } else if (hashCode) {
-    $('#tj-code').value = hashCode;
-    $('#tj-title').textContent = 'Te han invitado a un equipo';
+    codeIn.value = hashCode; syncJoin();
+    const g = parseGroupCode(hashCode);
+    $('#tj-title').textContent = g ? g.label : 'Te han invitado a un equipo';
+    if (g) $('#tj-msg').textContent = `${g.label}: comprueba tu nombre y toca Entrar.`;
     setTimeout(() => openTeam(true), 600);
   }
 }
