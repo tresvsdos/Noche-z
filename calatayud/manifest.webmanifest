@@ -1,0 +1,32 @@
+{
+  "name": "Survival Zombie · Calatayud",
+  "short_name": "Survival Z",
+  "description": "Mapa 3D de Survival Zombie en Calatayud, con tu grupo en directo y walkie-talkie.",
+  "lang": "es",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#07090c",
+  "theme_color": "#07090c",
+  "icons": [
+    {
+      "src": "assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
